@@ -122,6 +122,7 @@ nobase_follyinclude_HEADERS = \
 	FBString.h \
 	FBVector.h \
 	File.h \
+	FilePortability.h \
 	FileUtil.h \
 	Fingerprint.h \
 	folly-config.h \
@@ -251,6 +252,7 @@ nobase_follyinclude_HEADERS = \
 	SmallLocks.h \
 	small_vector.h \
 	SocketAddress.h \
+	SocketPortability.h \
 	sorted_vector_types.h \
 	SpinLock.h \
 	SpookyHashV1.h \
@@ -281,7 +283,8 @@ nobase_follyinclude_HEADERS = \
 	Uri.h \
 	Uri-inl.h \
 	Varint.h \
-	VersionCheck.h
+	VersionCheck.h \
+	WindowsPortability.h
 
 FormatTables.cpp: build/generate_format_tables.py
 	$(PYTHON) build/generate_format_tables.py
@@ -309,9 +312,11 @@ libfollybase_la_SOURCES = \
 
 libfolly_la_SOURCES = \
 	Bits.cpp \
+	CPortability.cpp \
 	detail/CacheLocality.cpp \
 	dynamic.cpp \
 	File.cpp \
+	FilePortability.cpp \
 	FileUtil.cpp \
 	FingerprintTables.cpp \
 	futures/detail/ThreadWheelTimekeeper.cpp \
@@ -356,6 +361,7 @@ libfolly_la_SOURCES = \
 	SharedMutex.cpp \
 	Singleton.cpp \
 	SocketAddress.cpp \
+	SocketPortability.cpp \
 	SpookyHashV1.cpp \
 	SpookyHashV2.cpp \
 	stats/Instantiations.cpp \
