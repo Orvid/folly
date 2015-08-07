@@ -260,7 +260,7 @@ void AsyncServerSocket::useExistingSockets(const std::vector<int>& fds) {
     SocketAddress address;
     address.setFromLocalAddress(fd);
 
-    setupSocket(fd);
+    setupSocket(fd, address.getFamily());
     sockets_.emplace_back(eventBase_, fd, this, address.getFamily());
     sockets_.back().changeHandlerFD(fd);
   }
@@ -367,7 +367,7 @@ void AsyncServerSocket::bind(uint16_t port) {
     CHECK_GE(s, 0);
 
     try {
-      setupSocket(s);
+      setupSocket(s, res->ai_family);
     } catch (...) {
       closeNoInt(s);
       throw;
@@ -622,7 +622,7 @@ int AsyncServerSocket::createSocket(int family) {
   }
 
   try {
-    setupSocket(fd);
+    setupSocket(fd, family);
   } catch (...) {
     closeNoInt(fd);
     throw;
@@ -630,11 +630,7 @@ int AsyncServerSocket::createSocket(int family) {
   return fd;
 }
 
-void AsyncServerSocket::setupSocket(int fd) {
-  // Get the address family
-  SocketAddress address;
-  address.setFromLocalAddress(fd);
-
+void AsyncServerSocket::setupSocket(int fd, int family) {
   // Put the socket in non-blocking mode
   if (fcntl(fd, F_SETFL, O_NONBLOCK) != 0) {
     folly::throwSystemError(errno,
@@ -656,7 +652,7 @@ void AsyncServerSocket::setupSocket(int fd) {
                << strerror(errno);
     folly::throwSystemError(errno,
                             "failed to bind to async server socket: " +
-                            address.describe());
+                            fd);
   }
 
   // Set keepalive as desired

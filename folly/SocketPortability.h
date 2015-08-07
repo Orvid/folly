@@ -24,7 +24,7 @@
 #endif
 
 #ifdef _MSC_VER
-#include <fcntl.h>
+
 #ifndef __STDC__
 #define __STDC__ 1
 #include <io.h>
@@ -32,6 +32,8 @@
 #else
 #include <io.h>
 #endif
+
+#include <fcntl.h>
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #include <ws2def.h>

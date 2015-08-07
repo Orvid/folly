@@ -407,10 +407,11 @@ class EvictingCacheMap : private boost::noncopyable {
   struct Node
     : public boost::intrusive::unordered_set_base_hook<link_mode>,
       public boost::intrusive::list_base_hook<link_mode> {
-    Node(const TKey& key, TValue&& value)
+    template<typename TKey, typename TValue>
+    Node(const TKey key, TValue value)
         : pr(std::make_pair(key, std::move(value))) {
     }
-    TPair pr;
+    typename TPair pr;
     friend bool operator==(const Node& lhs, const Node& rhs) {
       return lhs.pr.first == rhs.pr.first;
     }

@@ -114,7 +114,6 @@ class RequestContext {
     return getStaticContext();
   }
 
- private:
   // Used to solve static destruction ordering issue.  Any static object
   // that uses RequestContext must call this function in its constructor.
   //
@@ -126,6 +125,7 @@ class RequestContext {
     return *context;
   }
 
+private:
   folly::RWSpinLock lock;
   std::map<std::string, std::unique_ptr<RequestData>> data_;
 };

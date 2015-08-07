@@ -517,6 +517,15 @@ size_t sysconf(int tp) {
   }
 }
 
+void timeradd(timeval* a, timeval* b, timeval* res) {
+  res->tv_sec = a->tv_sec + b->tv_sec;
+  res->tv_usec = a->tv_usec + b->tv_usec;
+  if (res->tv_usec >= 1000000) {
+    res->tv_sec++;
+    res->tv_usec -= 1000000;
+  }
+}
+
 void timersub(timeval* a, timeval* b, timeval* res) {
   res->tv_sec = a->tv_sec - b->tv_sec;
   res->tv_usec = a->tv_usec - b->tv_usec;

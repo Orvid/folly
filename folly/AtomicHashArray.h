@@ -127,11 +127,11 @@ class AtomicHashArray : boost::noncopyable {
     double growthFactor;
     int    entryCountThreadCacheSize;
     size_t capacity; // if positive, overrides maxLoadFactor
-
+    
   private:
-    static const KeyT kEmptyKey;
-    static const KeyT kLockedKey;
-    static const KeyT kErasedKey;
+    static constexpr KeyT kEmptyKey = (KeyT)-1;
+    static constexpr KeyT kLockedKey = (KeyT)-2;
+    static constexpr KeyT kErasedKey = (KeyT)-3;
 
   public:
     constexpr Config() : emptyKey(kEmptyKey),

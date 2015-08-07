@@ -35,7 +35,9 @@ namespace folly { namespace socket_portability {
   template<class R, class F, class... Args>
   R wrapSocketFunction(F f, int s, Args... args) {
     SOCKET h = fd_to_socket(s);
-    return f(h, args...);
+    R ret = f(h, args...);
+    errno = WSAGetLastError();
+    return ret;
   }
 
   int accept(int s, struct sockaddr* addr, int* addrlen) {

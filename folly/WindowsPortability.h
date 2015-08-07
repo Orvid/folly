@@ -27,10 +27,36 @@
 # error This header should only be included on windows!
 #endif
 #include <Windows.h>
+#include <WinSock2.h>
+
+// Defined in winnt.h
+#ifdef DELETE
+# undef DELETE
+#endif
 
 // Defined in the GDI interface.
 #ifdef ERROR
 # undef ERROR
+#endif
+
+// Defined in minwindef.h
+#ifdef IN
+# undef IN
+#endif
+
+// Defined in winerror.h
+#ifdef NO_ERROR
+# undef NO_ERROR
+#endif
+
+// Defined in minwindef.h
+#ifdef OUT
+# undef OUT
+#endif
+
+// Defined in minwindef.h
+#ifdef STRICT
+# undef STRICT
 #endif
 
 // Defined in Winbase.h

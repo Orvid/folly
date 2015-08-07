@@ -472,7 +472,8 @@ class FormatValue<
       valBufBegin = valBuf + 3;  // room for sign and base prefix
 #ifdef _MSC_VER
       char valBuf2[valBufSize];
-      snprintf(valBuf2, valBufSize, "%ju", static_cast<uintmax_t>(uval));
+      int r2 = snprintf(valBuf2, valBufSize, "%llu", static_cast<uintmax_t>(uval));
+      assert(r2 >= 0 && r2 < valBufSize);
       int len = GetNumberFormat(
         LOCALE_USER_DEFAULT,
         0,

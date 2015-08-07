@@ -29,6 +29,7 @@
 
 #include <boost/iterator/iterator_facade.hpp>
 
+#include <folly/FilePortability.h>
 #include <folly/FBString.h>
 #include <folly/Range.h>
 #include <folly/FBVector.h>

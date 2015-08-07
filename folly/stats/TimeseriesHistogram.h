@@ -99,7 +99,7 @@ class TimeseriesHistogram {
   int getNumBuckets() const { return buckets_.getNumBuckets(); }
 
   /* Return the bucket index into which the given value would fall. */
-  int getBucketIdx(const ValueType& value) const;
+  //int getBucketIdx(const ValueType& value) const;
 
   /*
    * Return the threshold of the bucket for the given index in range

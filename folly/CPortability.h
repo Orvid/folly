@@ -259,6 +259,7 @@ pid_t syscall(int num, ...);
 #define _SC_NPROCESSORS_CONF 2
 size_t sysconf(int tp);
 
+void timeradd(timeval* a, timeval* b, timeval* res);
 void timersub(timeval* a, timeval* b, timeval* res);
 int usleep(unsigned int ms);
 
