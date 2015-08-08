@@ -672,7 +672,6 @@ void AsyncServerSocket::setupSocket(int fd, int family) {
   // Set TCP nodelay if available, MAC OS X Hack
   // See http://lists.danga.com/pipermail/memcached/2005-March/001240.html
 #ifndef TCP_NOPUSH
-  auto family = address.getFamily();
   if (family != AF_UNIX) {
     if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one)) != 0) {
       // This isn't a fatal error; just log an error message and continue
