@@ -624,7 +624,7 @@ void AsyncSocket::writeChain(WriteCallback* callback, unique_ptr<IOBuf>&& buf,
                               WriteFlags flags) {
   size_t count = buf->countChainElements();
   if (count <= 64) {
-    iovec vec[count];
+    iovec* vec = (iovec*)alloca(sizeof(iovec) * count);;
     writeChainImpl(callback, vec, count, std::move(buf), flags);
   } else {
     iovec* vec = new iovec[count];
