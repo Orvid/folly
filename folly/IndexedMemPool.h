@@ -20,11 +20,11 @@
 #include <type_traits>
 #include <stdint.h>
 #include <assert.h>
-#include <unistd.h>
-#include <sys/mman.h>
 #include <boost/noncopyable.hpp>
 #include <folly/AtomicStruct.h>
 #include <folly/Portability.h>
+#include <folly/CPortability.h>
+#include <folly/FilePortability.h>
 #include <folly/detail/CacheLocality.h>
 
 // Ignore shadowing warnings within this file, so includers can use -Wshadow.
