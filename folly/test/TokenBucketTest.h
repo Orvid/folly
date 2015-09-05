@@ -14,21 +14,15 @@
  * limitations under the License.
  */
 
-#include <folly/detail/Malloc.h>
+#pragma once
 
-extern "C" {
+#include <gtest/gtest.h>
 
-#if !FOLLY_HAVE_WEAK_SYMBOLS
-void* (*mallocx)(size_t, int) = nullptr;
-void* (*rallocx)(void*, size_t, int) = nullptr;
-size_t (*xallocx)(void*, size_t, size_t, int) = nullptr;
-size_t (*sallocx)(const void*, int) = nullptr;
-void (*dallocx)(void*, int) = nullptr;
-size_t (*nallocx)(size_t, int) = nullptr;
-int (*mallctl)(const char*, void*, size_t*, void*, size_t) = nullptr;
-int (*mallctlnametomib)(const char*, size_t*, size_t*) = nullptr;
-int (*mallctlbymib)(const size_t*, size_t, void*, size_t*, void*, size_t) =
-    nullptr;
-#endif
+#include <folly/TokenBucket.h>
 
-}
+namespace folly {
+
+struct TokenBucketTest :
+    public ::testing::TestWithParam<std::pair<double,double> > {};
+
+} // folly
