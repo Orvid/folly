@@ -30,12 +30,17 @@ namespace folly {
 class EventUtil {
  public:
   static bool isEventRegistered(const struct event* ev) {
+#ifdef _MSC_VER
+    return event_pending(ev,
+      EV_TIMEOUT | EV_READ | EV_WRITE | EV_SIGNAL, nullptr) != 0;
+#else
     // If any of these flags are set, the event is registered.
     enum {
       EVLIST_REGISTERED = (EVLIST_INSERTED | EVLIST_ACTIVE |
                            EVLIST_TIMEOUT | EVLIST_SIGNAL)
     };
     return (ev->ev_flags & EVLIST_REGISTERED);
+#endif
   }
 };
 
