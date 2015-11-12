@@ -20,17 +20,27 @@
 #include <errno.h>
 #include <mach/mach_time.h>
 
-static mach_timebase_info_data_t tb_info;
-static bool tb_init = mach_timebase_info(&tb_info) == KERN_SUCCESS;
+namespace {
+
+const mach_timebase_info_data_t* tbInfo() {
+  static auto info = [] {
+    static mach_timebase_info_data_t info;
+    return (mach_timebase_info(&info) == KERN_SUCCESS) ? &info : nullptr;
+  }();
+  return info;
+};
+
+}  // anonymous namespace
 
 int clock_gettime(clockid_t clk_id, struct timespec* ts) {
-  if (!tb_init) {
+  auto tb_info = tbInfo();
+  if (tb_info == nullptr) {
     errno = EINVAL;
     return -1;
   }
 
   uint64_t now_ticks = mach_absolute_time();
-  uint64_t now_ns = (now_ticks * tb_info.numer) / tb_info.denom;
+  uint64_t now_ns = (now_ticks * tb_info->numer) / tb_info->denom;
   ts->tv_sec = now_ns / 1000000000;
   ts->tv_nsec = now_ns % 1000000000;
 
@@ -38,13 +48,14 @@ int clock_gettime(clockid_t clk_id, struct timespec* ts) {
 }
 
 int clock_getres(clockid_t clk_id, struct timespec* ts) {
-  if (!tb_init) {
+  auto tb_info = tbInfo();
+  if (tb_info == nullptr) {
     errno = EINVAL;
     return -1;
   }
 
   ts->tv_sec = 0;
-  ts->tv_nsec = tb_info.numer / tb_info.denom;
+  ts->tv_nsec = tb_info->numer / tb_info->denom;
 
   return 0;
 }
@@ -87,7 +98,11 @@ int clock_getres(clockid_t clock_id, struct timespec *res)
       DWORD   timeAdjustment, timeIncrement;
       BOOL    isTimeAdjustmentDisabled;
 
-      (void)GetSystemTimeAdjustment(&timeAdjustment, &timeIncrement, &isTimeAdjustmentDisabled);
+      (void)GetSystemTimeAdjustment(
+        &timeAdjustment,
+        &timeIncrement,
+        &isTimeAdjustmentDisabled
+      );
       res->tv_sec = 0;
       res->tv_nsec = timeIncrement * 100;
 
@@ -129,7 +144,10 @@ int clock_gettime(clockid_t clock_id, struct timespec *tp)
         return -1;
 
       tp->tv_sec = pc.QuadPart / pf.QuadPart;
-      tp->tv_nsec = (int)(((pc.QuadPart % pf.QuadPart) * POW10_9 + (pf.QuadPart >> 1)) / pf.QuadPart);
+      tp->tv_nsec = (int)(
+        ((pc.QuadPart % pf.QuadPart) * POW10_9 + (pf.QuadPart >> 1)) /
+        pf.QuadPart
+      );
       if (tp->tv_nsec >= POW10_9) {
         tp->tv_sec++;
         tp->tv_nsec -= POW10_9;
@@ -140,8 +158,10 @@ int clock_gettime(clockid_t clock_id, struct timespec *tp)
 
     case CLOCK_PROCESS_CPUTIME_ID:
     {
-      if (0 == GetProcessTimes(GetCurrentProcess(), &ct.ft, &et.ft, &kt.ft, &ut.ft))
+      if (0 == GetProcessTimes(GetCurrentProcess(),
+                               &ct.ft, &et.ft, &kt.ft, &ut.ft)) {
         return -1;
+      }
       t = kt.u64 + ut.u64;
       tp->tv_sec = t / POW10_7;
       tp->tv_nsec = ((int)(t % POW10_7)) * 100;
@@ -151,8 +171,10 @@ int clock_gettime(clockid_t clock_id, struct timespec *tp)
 
     case CLOCK_THREAD_CPUTIME_ID:
     {
-      if (0 == GetThreadTimes(GetCurrentThread(), &ct.ft, &et.ft, &kt.ft, &ut.ft))
+      if (0 == GetThreadTimes(GetCurrentThread(),
+                              &ct.ft, &et.ft, &kt.ft, &ut.ft)) {
         return -1;
+      }
       t = kt.u64 + ut.u64;
       tp->tv_sec = t / POW10_7;
       tp->tv_nsec = ((int)(t % POW10_7)) * 100;

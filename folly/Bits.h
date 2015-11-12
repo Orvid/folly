@@ -55,7 +55,7 @@
 #ifndef FOLLY_BITS_H_
 #define FOLLY_BITS_H_
 
-#if !defined(__clang__) && (_MSC_VER >= 1900)
+#if !defined(__clang__) && !(defined(_MSC_VER) && (_MSC_VER < 1900))
 #define FOLLY_INTRINSIC_CONSTEXPR constexpr
 #else
 // GCC and MSVC 2015+ are the only compilers with

@@ -324,6 +324,8 @@ void AsyncSSLSocket::init() {
   // Do this here to ensure we initialize this once before any use of
   // AsyncSSLSocket instances and not as part of library load.
   static const auto eorAwareBioMethodInitializer = initEorBioMethod();
+  (void)eorAwareBioMethodInitializer;
+
   setup_SSL_CTX(ctx_->getSSLCtx());
 }
 
@@ -352,13 +354,10 @@ void AsyncSSLSocket::closeNow() {
 
   DestructorGuard dg(this);
 
-  if (handshakeCallback_) {
-    AsyncSocketException ex(AsyncSocketException::END_OF_FILE,
-                           "SSL connection closed locally");
-    HandshakeCB* callback = handshakeCallback_;
-    handshakeCallback_ = nullptr;
-    callback->handshakeErr(this, ex);
-  }
+  invokeHandshakeErr(
+      AsyncSocketException(
+        AsyncSocketException::END_OF_FILE,
+        "SSL connection closed locally"));
 
   if (ssl_ != nullptr) {
     SSL_free(ssl_);
@@ -399,6 +398,15 @@ bool AsyncSSLSocket::connecting() const {
           (AsyncSocket::connecting() ||
            (AsyncSocket::good() && (sslState_ == STATE_UNINIT ||
                                      sslState_ == STATE_CONNECTING))));
+}
+
+std::string AsyncSSLSocket::getApplicationProtocol() noexcept {
+  const unsigned char* protoName = nullptr;
+  unsigned protoLength;
+  if (getSelectedNextProtocolNoThrow(&protoName, &protoLength)) {
+    return std::string(reinterpret_cast<const char*>(protoName), protoLength);
+  }
+  return "";
 }
 
 bool AsyncSSLSocket::isEorTrackingEnabled() const {
@@ -464,6 +472,7 @@ void AsyncSSLSocket::invalidState(HandshakeCB* callback) {
   AsyncSocketException ex(AsyncSocketException::INVALID_STATE,
                          "sslAccept() called with socket in invalid state");
 
+  handshakeEndTime_ = std::chrono::steady_clock::now();
   if (callback) {
     callback->handshakeErr(this, ex);
   }
@@ -486,6 +495,9 @@ void AsyncSSLSocket::sslAccept(HandshakeCB* callback, uint32_t timeout,
       handshakeCallback_ != nullptr) {
     return invalidState(callback);
   }
+  handshakeStartTime_ = std::chrono::steady_clock::now();
+  // Make end time at least >= start time.
+  handshakeEndTime_ = handshakeStartTime_;
 
   sslState_ = STATE_ACCEPTING;
   handshakeCallback_ = callback;
@@ -605,18 +617,10 @@ void AsyncSSLSocket::timeoutExpired() noexcept {
   }
 }
 
-int AsyncSSLSocket::sslExDataIndex_ = -1;
-std::mutex AsyncSSLSocket::mutex_;
-
 int AsyncSSLSocket::getSSLExDataIndex() {
-  if (sslExDataIndex_ < 0) {
-    std::lock_guard<std::mutex> g(mutex_);
-    if (sslExDataIndex_ < 0) {
-      sslExDataIndex_ = SSL_get_ex_new_index(0,
-          (void*)"AsyncSSLSocket data index", nullptr, nullptr, nullptr);
-    }
-  }
-  return sslExDataIndex_;
+  static auto index = SSL_get_ex_new_index(
+      0, (void*)"AsyncSSLSocket data index", nullptr, nullptr, nullptr);
+  return index;
 }
 
 AsyncSSLSocket* AsyncSSLSocket::getFromSSL(const SSL *ssl) {
@@ -627,20 +631,24 @@ AsyncSSLSocket* AsyncSSLSocket::getFromSSL(const SSL *ssl) {
 void AsyncSSLSocket::failHandshake(const char* fn,
                                     const AsyncSocketException& ex) {
   startFail();
-
   if (handshakeTimeout_.isScheduled()) {
     handshakeTimeout_.cancelTimeout();
   }
+  invokeHandshakeErr(ex);
+  finishFail();
+}
+
+void AsyncSSLSocket::invokeHandshakeErr(const AsyncSocketException& ex) {
+  handshakeEndTime_ = std::chrono::steady_clock::now();
   if (handshakeCallback_ != nullptr) {
     HandshakeCB* callback = handshakeCallback_;
     handshakeCallback_ = nullptr;
     callback->handshakeErr(this, ex);
   }
-
-  finishFail();
 }
 
 void AsyncSSLSocket::invokeHandshakeCB() {
+  handshakeEndTime_ = std::chrono::steady_clock::now();
   if (handshakeTimeout_.isScheduled()) {
     handshakeTimeout_.cancelTimeout();
   }
@@ -694,6 +702,10 @@ void AsyncSSLSocket::sslConn(HandshakeCB* callback, uint64_t timeout,
       handshakeCallback_ != nullptr) {
     return invalidState(callback);
   }
+
+  handshakeStartTime_ = std::chrono::steady_clock::now();
+  // Make end time at least >= start time.
+  handshakeEndTime_ = handshakeStartTime_;
 
   sslState_ = STATE_CONNECTING;
   handshakeCallback_ = callback;
@@ -800,6 +812,15 @@ const char *AsyncSSLSocket::getSSLServerNameNoThrow() const {
 
 int AsyncSSLSocket::getSSLVersion() const {
   return (ssl_ != nullptr) ? SSL_version(ssl_) : 0;
+}
+
+const char *AsyncSSLSocket::getSSLCertSigAlgName() const {
+  X509 *cert = (ssl_ != nullptr) ? SSL_get_certificate(ssl_) : nullptr;
+  if (cert) {
+    int nid = OBJ_obj2nid(cert->sig_alg->algorithm);
+    return OBJ_nid2ln(nid);
+  }
+  return nullptr;
 }
 
 int AsyncSSLSocket::getSSLCertSize() const {
@@ -1150,7 +1171,11 @@ AsyncSSLSocket::performRead(void** buf, size_t* buflen, size_t* offset) {
     int error = SSL_get_error(ssl_, bytes);
     if (error == SSL_ERROR_WANT_READ) {
       // The caller will register for read event if not already.
-      return READ_BLOCKING;
+      if (errno == EWOULDBLOCK || errno == EAGAIN) {
+        return READ_BLOCKING;
+      } else {
+        return READ_ERROR;
+      }
     } else if (error == SSL_ERROR_WANT_WRITE) {
       // TODO: Even though we are attempting to read data, SSL_read() may
       // need to write data if renegotiation is being performed.  We currently

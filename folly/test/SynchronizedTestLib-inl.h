@@ -188,12 +188,12 @@ template <class Mutex> void testDualLockingWithConst() {
 
       if (i & 1) {
         SYNCHRONIZED_DUAL (v, pv, m, pm) {
-          size_t s = m.size();
+          (void)m.size();
           v.push_back(i);
         }
       } else {
         SYNCHRONIZED_DUAL (m, pm, v, pv) {
-          size_t s = m.size();
+          (void)m.size();
           v.push_back(i);
         }
       }
@@ -337,6 +337,21 @@ template <class Mutex> void testConstCopy() {
 
   result = v.copy();
   EXPECT_EQ(result, input);
+}
+
+struct NotCopiableNotMovable {
+  NotCopiableNotMovable(int, const char*) {}
+  NotCopiableNotMovable(const NotCopiableNotMovable&) = delete;
+  NotCopiableNotMovable& operator=(const NotCopiableNotMovable&) = delete;
+  NotCopiableNotMovable(NotCopiableNotMovable&&) = delete;
+  NotCopiableNotMovable& operator=(NotCopiableNotMovable&&) = delete;
+};
+
+template <class Mutex> void testInPlaceConstruction() {
+  // This won't compile without construct_in_place
+  folly::Synchronized<NotCopiableNotMovable> a(
+    folly::construct_in_place, 5, "a"
+  );
 }
 
 

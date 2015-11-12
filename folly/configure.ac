@@ -120,7 +120,7 @@ AM_PATH_PYTHON
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([fcntl.h features.h inttypes.h limits.h stdint.h stdlib.h string.h sys/time.h unistd.h mutex.h malloc.h emmintrin.h byteswap.h bits/functexcept.h bits/c++config.h])
+AC_CHECK_HEADERS([fcntl.h features.h inttypes.h limits.h stdint.h stdlib.h string.h sys/time.h unistd.h mutex.h malloc.h byteswap.h bits/functexcept.h bits/c++config.h])
 
 AC_CHECK_HEADER(double-conversion/double-conversion.h, [], [AC_MSG_ERROR(
                 [Couldn't find double-conversion.h, please download from \
@@ -229,6 +229,26 @@ AC_CACHE_CHECK(
 
 if test "$folly_cv_lib_libcpp" = yes; then
   AC_DEFINE([USE_LIBCPP], [1], [Define to 1 if we are using libc++.])
+fi
+
+AC_CACHE_CHECK(
+  [for c++11 atomic support without GNU Atomic library],
+  [folly_cv_lib_libatomic],
+  [AC_LINK_IFELSE(
+    [AC_LANG_SOURCE[
+      #include <atomic>
+      int main() {
+        struct Test { int val; };
+        std::atomic<Test> s;
+        s.is_lock_free();
+      }
+    ]],
+    [folly_cv_lib_libatomic=yes],
+    [folly_cv_lib_libatomic=no])])
+
+if test "$folly_cv_lib_libatomic" = no; then
+  AC_HAVE_LIBRARY([atomic],[],[AC_MSG_ERROR(
+                  [Please install the GNU Atomic library])])
 fi
 
 AC_CACHE_CHECK(
@@ -369,6 +389,41 @@ if test "$folly_cv_prog_cc_xsi_strerror_r" = "yes"; then
   AC_DEFINE([HAVE_XSI_STRERROR_R], [1], [Define to 1 if the runtime supports XSI-style strerror_r])
 fi
 
+AC_CACHE_CHECK(
+  [for ext/random and __gnu_cxx::sfmt19937],
+  [folly_cv_prog_cc_have_extrandom_sfmt19937],
+  [AC_COMPILE_IFELSE(
+    [AC_LANG_SOURCE[
+      #include <ext/random>
+      int main(int argc, char** argv) {
+        __gnu_cxx::sfmt19937 rng;
+        return 0;
+      }
+    ]],
+    [folly_cv_prog_cc_have_extrandom_sfmt19937=yes],
+    [folly_cv_prog_cc_have_extrandom_sfmt19937=no])])
+
+AC_CACHE_CHECK(
+  [for VLA (variable-length array) support],
+  [folly_cv_prog_cc_have_vla],
+  [AC_COMPILE_IFELSE(
+    [AC_LANG_SOURCE[
+      int main(int argc, char** argv) {
+        unsigned size = argc;
+        char data[size];
+        return 0;
+      }
+    ]],
+    [folly_cv_prog_cc_have_vla=yes],
+    [folly_cv_prog_cc_have_vla=no])])
+
+test "$folly_cv_prog_cc_have_vla" = yes && have_vla=1 || have_vla=0
+AC_DEFINE_UNQUOTED(
+  [HAVE_VLA],
+  [$have_vla],
+  [Define to 1 if the compiler has VLA (variable-length array) support,
+   otherwise define to 0])
+
 # Checks for library functions.
 AC_CHECK_FUNCS([getdelim \
                 gettimeofday \
@@ -391,6 +446,7 @@ AC_CHECK_HEADER([lz4.h], AC_CHECK_LIB([lz4], [LZ4_decompress_safe]))
 AC_CHECK_HEADER([snappy.h], AC_CHECK_LIB([snappy], [main]))
 AC_CHECK_HEADER([zlib.h], AC_CHECK_LIB([z], [main]))
 AC_CHECK_HEADER([lzma.h], AC_CHECK_LIB([lzma], [main]))
+AC_CHECK_HEADER([zstd.h], AC_CHECK_LIB([zstd], [main]))
 
 # Include directory that contains "folly" so #include <folly/Foo.h> works
 AM_CPPFLAGS='-I$(top_srcdir)/..'
@@ -410,6 +466,8 @@ AM_CONDITIONAL([HAVE_LINUX], [test "$build_os" == "linux-gnu"])
 AM_CONDITIONAL([HAVE_WEAK_SYMBOLS],
                [test "$folly_cv_prog_cc_weak_symbols" = "yes"])
 AM_CONDITIONAL([HAVE_BITS_FUNCTEXCEPT], [test "$ac_cv_header_bits_functexcept_h" = "yes"])
+AM_CONDITIONAL([HAVE_EXTRANDOM_SFMT19937],
+               [test "$folly_cv_prog_cc_have_extrandom_sfmt19937" = "yes"])
 
 # Output
 AC_CONFIG_FILES([Makefile

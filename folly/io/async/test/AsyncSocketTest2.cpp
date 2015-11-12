@@ -17,6 +17,7 @@
 #include <folly/io/async/AsyncSocket.h>
 #include <folly/io/async/AsyncTimeout.h>
 #include <folly/io/async/EventBase.h>
+#include <folly/RWSpinLock.h>
 #include <folly/SocketAddress.h>
 
 #include <folly/io/IOBuf.h>
@@ -96,6 +97,7 @@ TEST(AsyncSocketTest, Connect) {
   evb.loop();
 
   CHECK_EQ(cb.state, STATE_SUCCEEDED);
+  EXPECT_LE(0, socket->getConnectTime().count());
 }
 
 /**
@@ -115,6 +117,7 @@ TEST(AsyncSocketTest, ConnectRefused) {
 
   CHECK_EQ(cb.state, STATE_FAILED);
   CHECK_EQ(cb.exception.getType(), AsyncSocketException::NOT_OPEN);
+  EXPECT_LE(0, socket->getConnectTime().count());
 }
 
 /**
@@ -152,6 +155,7 @@ TEST(AsyncSocketTest, ConnectTimeout) {
   folly::SocketAddress peer;
   socket->getPeerAddress(&peer);
   CHECK_EQ(peer, addr);
+  EXPECT_LE(0, socket->getConnectTime().count());
 }
 
 /**
@@ -183,6 +187,9 @@ TEST(AsyncSocketTest, ConnectAndWrite) {
   // Make sure the server got a connection and received the data
   socket->close();
   server.verifyConnection(buf, sizeof(buf));
+
+  ASSERT_TRUE(socket->isClosedBySelf());
+  ASSERT_FALSE(socket->isClosedByPeer());
 }
 
 /**
@@ -210,6 +217,9 @@ TEST(AsyncSocketTest, ConnectNullCallback) {
   // Make sure the server got a connection and received the data
   socket->close();
   server.verifyConnection(buf, sizeof(buf));
+
+  ASSERT_TRUE(socket->isClosedBySelf());
+  ASSERT_FALSE(socket->isClosedByPeer());
 }
 
 /**
@@ -245,6 +255,9 @@ TEST(AsyncSocketTest, ConnectWriteAndClose) {
 
   // Make sure the server got a connection and received the data
   server.verifyConnection(buf, sizeof(buf));
+
+  ASSERT_TRUE(socket->isClosedBySelf());
+  ASSERT_FALSE(socket->isClosedByPeer());
 }
 
 /**
@@ -274,6 +287,9 @@ TEST(AsyncSocketTest, ConnectAndClose) {
 
   // Make sure the connection was aborted
   CHECK_EQ(ccb.state, STATE_FAILED);
+
+  ASSERT_TRUE(socket->isClosedBySelf());
+  ASSERT_FALSE(socket->isClosedByPeer());
 }
 
 /**
@@ -305,6 +321,9 @@ TEST(AsyncSocketTest, ConnectAndCloseNow) {
 
   // Make sure the connection was aborted
   CHECK_EQ(ccb.state, STATE_FAILED);
+
+  ASSERT_TRUE(socket->isClosedBySelf());
+  ASSERT_FALSE(socket->isClosedByPeer());
 }
 
 /**
@@ -344,6 +363,9 @@ TEST(AsyncSocketTest, ConnectWriteAndCloseNow) {
 
   CHECK_EQ(ccb.state, STATE_FAILED);
   CHECK_EQ(wcb.state, STATE_FAILED);
+
+  ASSERT_TRUE(socket->isClosedBySelf());
+  ASSERT_FALSE(socket->isClosedByPeer());
 }
 
 /**
@@ -378,6 +400,9 @@ TEST(AsyncSocketTest, ConnectAndRead) {
   CHECK_EQ(rcb.buffers.size(), 1);
   CHECK_EQ(rcb.buffers[0].length, sizeof(buf));
   CHECK_EQ(memcmp(rcb.buffers[0].buffer, buf, sizeof(buf)), 0);
+
+  ASSERT_FALSE(socket->isClosedBySelf());
+  ASSERT_FALSE(socket->isClosedByPeer());
 }
 
 /**
@@ -413,6 +438,9 @@ TEST(AsyncSocketTest, ConnectReadAndClose) {
   CHECK_EQ(ccb.state, STATE_FAILED); // we aborted the close attempt
   CHECK_EQ(rcb.buffers.size(), 0);
   CHECK_EQ(rcb.state, STATE_SUCCEEDED); // this indicates EOF
+
+  ASSERT_TRUE(socket->isClosedBySelf());
+  ASSERT_FALSE(socket->isClosedByPeer());
 }
 
 /**
@@ -471,6 +499,9 @@ TEST(AsyncSocketTest, ConnectWriteAndRead) {
   CHECK_EQ(memcmp(buf1, readbuf, sizeof(buf1)), 0);
   uint32_t bytesRead = acceptedSocket->read(readbuf, sizeof(readbuf));
   CHECK_EQ(bytesRead, 0);
+
+  ASSERT_FALSE(socket->isClosedBySelf());
+  ASSERT_TRUE(socket->isClosedByPeer());
 }
 
 /**
@@ -556,6 +587,9 @@ TEST(AsyncSocketTest, ConnectWriteAndShutdownWrite) {
   CHECK_EQ(rcb.buffers[0].length, sizeof(acceptedWbuf));
   CHECK_EQ(memcmp(rcb.buffers[0].buffer,
                            acceptedWbuf, sizeof(acceptedWbuf)), 0);
+
+  ASSERT_FALSE(socket->isClosedBySelf());
+  ASSERT_FALSE(socket->isClosedByPeer());
 }
 
 /**
@@ -641,6 +675,9 @@ TEST(AsyncSocketTest, ConnectReadWriteAndShutdownWrite) {
   // Fully close both sockets
   acceptedSocket->close();
   socket->close();
+
+  ASSERT_FALSE(socket->isClosedBySelf());
+  ASSERT_TRUE(socket->isClosedByPeer());
 }
 
 /**
@@ -729,6 +766,9 @@ TEST(AsyncSocketTest, ConnectReadWriteAndShutdownWriteNow) {
   // Fully close both sockets
   acceptedSocket->close();
   socket->close();
+
+  ASSERT_FALSE(socket->isClosedBySelf());
+  ASSERT_TRUE(socket->isClosedByPeer());
 }
 
 // Helper function for use in testConnectOptWrite()
@@ -902,6 +942,9 @@ TEST(AsyncSocketTest, WriteNullCallback) {
   // Make sure the server got a connection and received the data
   socket->close();
   server.verifyConnection(buf, sizeof(buf));
+
+  ASSERT_TRUE(socket->isClosedBySelf());
+  ASSERT_FALSE(socket->isClosedByPeer());
 }
 
 /**
@@ -988,6 +1031,9 @@ TEST(AsyncSocketTest, WritePipeError) {
   CHECK_EQ(wcb.state, STATE_FAILED);
   CHECK_EQ(wcb.exception.getType(),
                     AsyncSocketException::INTERNAL_ERROR);
+
+  ASSERT_FALSE(socket->isClosedBySelf());
+  ASSERT_FALSE(socket->isClosedByPeer());
 }
 
 /**
@@ -1062,6 +1108,9 @@ TEST(AsyncSocketTest, WriteIOBuf) {
 
   acceptedSocket->close();
   socket->close();
+
+  ASSERT_TRUE(socket->isClosedBySelf());
+  ASSERT_FALSE(socket->isClosedByPeer());
 }
 
 TEST(AsyncSocketTest, WriteIOBufCorked) {
@@ -1120,6 +1169,9 @@ TEST(AsyncSocketTest, WriteIOBufCorked) {
 
   acceptedSocket->close();
   socket->close();
+
+  ASSERT_TRUE(socket->isClosedBySelf());
+  ASSERT_FALSE(socket->isClosedByPeer());
 }
 
 /**
@@ -1161,6 +1213,9 @@ TEST(AsyncSocketTest, ZeroLengthWrite) {
   CHECK_EQ(wcb3.state, STATE_SUCCEEDED);
   CHECK_EQ(wcb4.state, STATE_SUCCEEDED);
   rcb.verifyData(buf.get(), len1 + len2);
+
+  ASSERT_TRUE(socket->isClosedBySelf());
+  ASSERT_FALSE(socket->isClosedByPeer());
 }
 
 TEST(AsyncSocketTest, ZeroLengthWritev) {
@@ -1200,6 +1255,9 @@ TEST(AsyncSocketTest, ZeroLengthWritev) {
 
   CHECK_EQ(wcb.state, STATE_SUCCEEDED);
   rcb.verifyData(buf.get(), len1 + len2);
+
+  ASSERT_TRUE(socket->isClosedBySelf());
+  ASSERT_FALSE(socket->isClosedByPeer());
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1258,6 +1316,9 @@ TEST(AsyncSocketTest, ClosePendingWritesWhileClosing) {
        ++it) {
     CHECK_EQ((*it)->state, STATE_FAILED);
   }
+
+  ASSERT_TRUE(socket->isClosedBySelf());
+  ASSERT_FALSE(socket->isClosedByPeer());
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1317,6 +1378,9 @@ TEST(AsyncSocket, ConnectReadImmediateRead) {
   CHECK_EQ(wcb1.state, STATE_SUCCEEDED);
   rcb.verifyData(expectedData, expectedDataSz);
   CHECK_EQ(socket.immediateReadCalled, true);
+
+  ASSERT_FALSE(socket.isClosedBySelf());
+  ASSERT_FALSE(socket.isClosedByPeer());
 }
 
 TEST(AsyncSocket, ConnectReadUninstallRead) {
@@ -1368,6 +1432,9 @@ TEST(AsyncSocket, ConnectReadUninstallRead) {
    * was reset in dataAvailableCallback */
   CHECK_EQ(rcb.dataRead(), maxBufferSz);
   CHECK_EQ(socket.immediateReadCalled, false);
+
+  ASSERT_FALSE(socket.isClosedBySelf());
+  ASSERT_FALSE(socket.isClosedByPeer());
 }
 
 // TODO:
@@ -1386,6 +1453,113 @@ TEST(AsyncSocket, ConnectReadUninstallRead) {
 ///////////////////////////////////////////////////////////////////////////
 // AsyncServerSocket tests
 ///////////////////////////////////////////////////////////////////////////
+namespace {
+/**
+ * Helper ConnectionEventCallback class for the test code.
+ * It maintains counters protected by a spin lock.
+ */
+class TestConnectionEventCallback :
+  public AsyncServerSocket::ConnectionEventCallback {
+ public:
+  virtual void onConnectionAccepted(
+      const int socket,
+      const SocketAddress& addr) noexcept override {
+    folly::RWSpinLock::WriteHolder holder(spinLock_);
+    connectionAccepted_++;
+  }
+
+  virtual void onConnectionAcceptError(const int err) noexcept override {
+    folly::RWSpinLock::WriteHolder holder(spinLock_);
+    connectionAcceptedError_++;
+  }
+
+  virtual void onConnectionDropped(
+      const int socket,
+      const SocketAddress& addr) noexcept override {
+    folly::RWSpinLock::WriteHolder holder(spinLock_);
+    connectionDropped_++;
+  }
+
+  virtual void onConnectionEnqueuedForAcceptorCallback(
+      const int socket,
+      const SocketAddress& addr) noexcept override {
+    folly::RWSpinLock::WriteHolder holder(spinLock_);
+    connectionEnqueuedForAcceptCallback_++;
+  }
+
+  virtual void onConnectionDequeuedByAcceptorCallback(
+      const int socket,
+      const SocketAddress& addr) noexcept override {
+    folly::RWSpinLock::WriteHolder holder(spinLock_);
+    connectionDequeuedByAcceptCallback_++;
+  }
+
+  virtual void onBackoffStarted() noexcept override {
+    folly::RWSpinLock::WriteHolder holder(spinLock_);
+    backoffStarted_++;
+  }
+
+  virtual void onBackoffEnded() noexcept override {
+    folly::RWSpinLock::WriteHolder holder(spinLock_);
+    backoffEnded_++;
+  }
+
+  virtual void onBackoffError() noexcept override {
+    folly::RWSpinLock::WriteHolder holder(spinLock_);
+    backoffError_++;
+  }
+
+  unsigned int getConnectionAccepted() const {
+    folly::RWSpinLock::ReadHolder holder(spinLock_);
+    return connectionAccepted_;
+  }
+
+  unsigned int getConnectionAcceptedError() const {
+    folly::RWSpinLock::ReadHolder holder(spinLock_);
+    return connectionAcceptedError_;
+  }
+
+  unsigned int getConnectionDropped() const {
+    folly::RWSpinLock::ReadHolder holder(spinLock_);
+    return connectionDropped_;
+  }
+
+  unsigned int getConnectionEnqueuedForAcceptCallback() const {
+    folly::RWSpinLock::ReadHolder holder(spinLock_);
+    return connectionEnqueuedForAcceptCallback_;
+  }
+
+  unsigned int getConnectionDequeuedByAcceptCallback() const {
+    folly::RWSpinLock::ReadHolder holder(spinLock_);
+    return connectionDequeuedByAcceptCallback_;
+  }
+
+  unsigned int getBackoffStarted() const {
+    folly::RWSpinLock::ReadHolder holder(spinLock_);
+    return backoffStarted_;
+  }
+
+  unsigned int getBackoffEnded() const {
+    folly::RWSpinLock::ReadHolder holder(spinLock_);
+    return backoffEnded_;
+  }
+
+  unsigned int getBackoffError() const {
+    folly::RWSpinLock::ReadHolder holder(spinLock_);
+    return backoffError_;
+  }
+
+ private:
+  mutable folly::RWSpinLock spinLock_;
+  unsigned int connectionAccepted_{0};
+  unsigned int connectionAcceptedError_{0};
+  unsigned int connectionDropped_{0};
+  unsigned int connectionEnqueuedForAcceptCallback_{0};
+  unsigned int connectionDequeuedByAcceptCallback_{0};
+  unsigned int backoffStarted_{0};
+  unsigned int backoffEnded_{0};
+  unsigned int backoffError_{0};
+};
 
 /**
  * Helper AcceptCallback class for the test code
@@ -1486,6 +1660,7 @@ class TestAcceptCallback : public AsyncServerSocket::AcceptCallback {
 
   std::deque<EventInfo> events_;
 };
+}
 
 /**
  * Make sure accepted sockets have O_NONBLOCK and TCP_NODELAY set
@@ -1976,4 +2151,119 @@ TEST(AsyncSocketTest, UnixDomainSocketTest) {
   // The accepted connection should already be in non-blocking mode
   int flags = fcntl(fd, F_GETFL, 0);
   CHECK_EQ(flags & O_NONBLOCK, O_NONBLOCK);
+}
+
+TEST(AsyncSocketTest, ConnectionEventCallbackDefault) {
+  EventBase eventBase;
+  TestConnectionEventCallback connectionEventCallback;
+
+  // Create a server socket
+  std::shared_ptr<AsyncServerSocket> serverSocket(
+      AsyncServerSocket::newSocket(&eventBase));
+  serverSocket->setConnectionEventCallback(&connectionEventCallback);
+  serverSocket->bind(0);
+  serverSocket->listen(16);
+  folly::SocketAddress serverAddress;
+  serverSocket->getAddress(&serverAddress);
+
+  // Add a callback to accept one connection then stop the loop
+  TestAcceptCallback acceptCallback;
+  acceptCallback.setConnectionAcceptedFn(
+    [&](int fd, const folly::SocketAddress& addr) {
+      serverSocket->removeAcceptCallback(&acceptCallback, nullptr);
+    });
+  acceptCallback.setAcceptErrorFn([&](const std::exception& ex) {
+    serverSocket->removeAcceptCallback(&acceptCallback, nullptr);
+  });
+  serverSocket->addAcceptCallback(&acceptCallback, nullptr);
+  serverSocket->startAccepting();
+
+  // Connect to the server socket
+  std::shared_ptr<AsyncSocket> socket(
+      AsyncSocket::newSocket(&eventBase, serverAddress));
+
+  eventBase.loop();
+
+  // Validate the connection event counters
+  ASSERT_EQ(connectionEventCallback.getConnectionAccepted(), 1);
+  ASSERT_EQ(connectionEventCallback.getConnectionAcceptedError(), 0);
+  ASSERT_EQ(connectionEventCallback.getConnectionDropped(), 0);
+  ASSERT_EQ(
+      connectionEventCallback.getConnectionEnqueuedForAcceptCallback(), 1);
+  ASSERT_EQ(connectionEventCallback.getConnectionDequeuedByAcceptCallback(), 1);
+  ASSERT_EQ(connectionEventCallback.getBackoffStarted(), 0);
+  ASSERT_EQ(connectionEventCallback.getBackoffEnded(), 0);
+  ASSERT_EQ(connectionEventCallback.getBackoffError(), 0);
+}
+
+/**
+ * Test AsyncServerSocket::getNumPendingMessagesInQueue()
+ */
+TEST(AsyncSocketTest, NumPendingMessagesInQueue) {
+  EventBase eventBase;
+
+  // Counter of how many connections have been accepted
+  int count = 0;
+
+  // Create a server socket
+  auto serverSocket(AsyncServerSocket::newSocket(&eventBase));
+  serverSocket->bind(0);
+  serverSocket->listen(16);
+  folly::SocketAddress serverAddress;
+  serverSocket->getAddress(&serverAddress);
+
+  // Add a callback to accept connections
+  TestAcceptCallback acceptCallback;
+  acceptCallback.setConnectionAcceptedFn(
+      [&](int fd, const folly::SocketAddress& addr) {
+        count++;
+        CHECK_EQ(4 - count, serverSocket->getNumPendingMessagesInQueue());
+
+        if (count == 4) {
+          // all messages are processed, remove accept callback
+          serverSocket->removeAcceptCallback(&acceptCallback, &eventBase);
+        }
+      });
+  acceptCallback.setAcceptErrorFn([&](const std::exception& ex) {
+    serverSocket->removeAcceptCallback(&acceptCallback, &eventBase);
+  });
+  serverSocket->addAcceptCallback(&acceptCallback, &eventBase);
+  serverSocket->startAccepting();
+
+  // Connect to the server socket, 4 clients, there are 4 connections
+  auto socket1(AsyncSocket::newSocket(&eventBase, serverAddress));
+  auto socket2(AsyncSocket::newSocket(&eventBase, serverAddress));
+  auto socket3(AsyncSocket::newSocket(&eventBase, serverAddress));
+  auto socket4(AsyncSocket::newSocket(&eventBase, serverAddress));
+
+  eventBase.loop();
+}
+
+TEST(AsyncSocketTest, BufferTest) {
+  TestServer server;
+
+  EventBase evb;
+  AsyncSocket::OptionMap option{{{SOL_SOCKET, SO_SNDBUF}, 128}};
+  std::shared_ptr<AsyncSocket> socket = AsyncSocket::newSocket(&evb);
+  ConnCallback ccb;
+  socket->connect(&ccb, server.getAddress(), 30, option);
+
+
+  char buf[100 * 1024];
+  memset(buf, 'c', sizeof(buf));
+  WriteCallback wcb;
+  BufferCallback bcb;
+  socket->write(&wcb, buf, sizeof(buf), WriteFlags::NONE, &bcb);
+
+  evb.loop();
+  CHECK_EQ(ccb.state, STATE_SUCCEEDED);
+  CHECK_EQ(wcb.state, STATE_SUCCEEDED);
+
+  ASSERT_TRUE(bcb.hasBuffered());
+
+  socket->close();
+  server.verifyConnection(buf, sizeof(buf));
+
+  ASSERT_TRUE(socket->isClosedBySelf());
+  ASSERT_FALSE(socket->isClosedByPeer());
 }

@@ -49,7 +49,7 @@ stringToIOBuf(const char* s, uint32_t len) {
   unique_ptr<IOBuf> buf = IOBuf::create(len);
   memcpy(buf->writableTail(), s, len);
   buf->append(len);
-  return std::move(buf);
+  return buf;
 }
 
 void checkConsistency(const IOBufQueue& queue) {
@@ -156,7 +156,6 @@ TEST(IOBufQueue, Split) {
   queue.append(stringToIOBuf(SCL("Hello,")));
   queue.append(stringToIOBuf(SCL(" World")));
   checkConsistency(queue);
-  bool exceptionFired = false;
   EXPECT_THROW({prefix = queue.split(13);}, std::underflow_error);
   checkConsistency(queue);
 }

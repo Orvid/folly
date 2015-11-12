@@ -16,7 +16,10 @@
 
 #include <folly/Singleton.h>
 
+#include <atomic>
 #include <string>
+
+#include <folly/ScopeGuard.h>
 
 namespace folly {
 
@@ -49,6 +52,115 @@ FatalHelper __attribute__ ((__init_priority__ (101))) fatalHelper;
 }
 
 SingletonVault::~SingletonVault() { destroyInstances(); }
+
+void SingletonVault::registerSingleton(detail::SingletonHolderBase* entry) {
+  RWSpinLock::ReadHolder rh(&stateMutex_);
+
+  stateCheck(SingletonVaultState::Running);
+
+  if (UNLIKELY(registrationComplete_)) {
+    throw std::logic_error(
+      "Registering singleton after registrationComplete().");
+  }
+
+  RWSpinLock::ReadHolder rhMutex(&mutex_);
+  CHECK_THROW(singletons_.find(entry->type()) == singletons_.end(),
+              std::logic_error);
+
+  RWSpinLock::UpgradedHolder wh(&mutex_);
+  singletons_[entry->type()] = entry;
+}
+
+void SingletonVault::addEagerInitSingleton(detail::SingletonHolderBase* entry) {
+  RWSpinLock::ReadHolder rh(&stateMutex_);
+
+  stateCheck(SingletonVaultState::Running);
+
+  if (UNLIKELY(registrationComplete_)) {
+    throw std::logic_error(
+        "Registering for eager-load after registrationComplete().");
+  }
+
+  RWSpinLock::ReadHolder rhMutex(&mutex_);
+  CHECK_THROW(singletons_.find(entry->type()) != singletons_.end(),
+              std::logic_error);
+
+  RWSpinLock::UpgradedHolder wh(&mutex_);
+  eagerInitSingletons_.insert(entry);
+}
+
+void SingletonVault::registrationComplete() {
+  RequestContext::saveContext();
+  std::atexit([](){ SingletonVault::singleton()->destroyInstances(); });
+
+  RWSpinLock::WriteHolder wh(&stateMutex_);
+
+  stateCheck(SingletonVaultState::Running);
+
+  if (type_ == Type::Strict) {
+    for (const auto& p : singletons_) {
+      if (p.second->hasLiveInstance()) {
+        throw std::runtime_error(
+            "Singleton created before registration was complete.");
+      }
+    }
+  }
+
+  registrationComplete_ = true;
+}
+
+void SingletonVault::doEagerInit() {
+  std::unordered_set<detail::SingletonHolderBase*> singletonSet;
+  {
+    RWSpinLock::ReadHolder rh(&stateMutex_);
+    stateCheck(SingletonVaultState::Running);
+    if (UNLIKELY(!registrationComplete_)) {
+      throw std::logic_error("registrationComplete() not yet called");
+    }
+    singletonSet = eagerInitSingletons_; // copy set of pointers
+  }
+
+  for (auto *single : singletonSet) {
+    single->createInstance();
+  }
+}
+
+void SingletonVault::doEagerInitVia(Executor& exe, folly::Baton<>* done) {
+  std::unordered_set<detail::SingletonHolderBase*> singletonSet;
+  {
+    RWSpinLock::ReadHolder rh(&stateMutex_);
+    stateCheck(SingletonVaultState::Running);
+    if (UNLIKELY(!registrationComplete_)) {
+      throw std::logic_error("registrationComplete() not yet called");
+    }
+    singletonSet = eagerInitSingletons_; // copy set of pointers
+  }
+
+  auto countdown = std::make_shared<std::atomic<size_t>>(singletonSet.size());
+  for (auto* single : singletonSet) {
+    // countdown is retained by shared_ptr, and will be alive until last lambda
+    // is done.  notifyBaton is provided by the caller, and expected to remain
+    // present (if it's non-nullptr).  singletonSet can go out of scope but
+    // its values, which are SingletonHolderBase pointers, are alive as long as
+    // SingletonVault is not being destroyed.
+    exe.add([=] {
+      // decrement counter and notify if requested, whether initialization
+      // was successful, was skipped (already initialized), or exception thrown.
+      SCOPE_EXIT {
+        if (--(*countdown) == 0) {
+          if (done != nullptr) {
+            done->post();
+          }
+        }
+      };
+      // if initialization is in progress in another thread, don't try to init
+      // here.  Otherwise the current thread will block on 'createInstance'.
+      if (!single->creationStarted()) {
+        single->createInstance();
+      }
+    });
+  }
+}
 
 void SingletonVault::destroyInstances() {
   RWSpinLock::WriteHolder state_wh(&stateMutex_);

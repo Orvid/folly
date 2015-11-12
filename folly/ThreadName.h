@@ -30,19 +30,21 @@ namespace folly {
 #endif
 #endif
 
-#ifdef _MSC_VER
-inline bool setThreadName(std::thread::native_handle_type id, StringPiece name) {
+template <typename T>
+inline bool setThreadName(T id, StringPiece name) {
+  static_assert(
+      std::is_same<T, pthread_t>::value ||
+      std::is_same<T, std::thread::native_handle_type>::value,
+      "type must be pthread_t or std::thread::native_handle_type");
   return false;
 }
-#endif
 
-inline bool setThreadName(pthread_t id, StringPiece name) {
 #ifdef FOLLY_HAS_PTHREAD_SETNAME_NP
+template <>
+inline bool setThreadName(pthread_t id, StringPiece name) {
   return 0 == pthread_setname_np(id, name.fbstr().substr(0, 15).c_str());
-#else
-  return false;
-#endif
 }
+#endif
 
 inline bool setThreadName(StringPiece name) {
   return setThreadName(pthread_self(), name);

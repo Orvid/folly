@@ -16,10 +16,10 @@
 
 #include <folly/experimental/symbolizer/Symbolizer.h>
 
-#include <limits.h>
 #include <cstdio>
+#include <cstdlib>
 #include <iostream>
-#include <map>
+#include <limits.h>
 
 #ifdef __GNUC__
 #include <ext/stdio_filebuf.h>
@@ -259,13 +259,15 @@ void Symbolizer::symbolize(const uintptr_t* addresses,
 }
 
 namespace {
-const char kHexChars[] = "0123456789abcdef";
-const SymbolizePrinter::Color kAddressColor = SymbolizePrinter::Color::BLUE;
-const SymbolizePrinter::Color kFunctionColor = SymbolizePrinter::Color::PURPLE;
-const SymbolizePrinter::Color kFileColor = SymbolizePrinter::Color::DEFAULT;
+constexpr char kHexChars[] = "0123456789abcdef";
+constexpr auto kAddressColor = SymbolizePrinter::Color::BLUE;
+constexpr auto kFunctionColor = SymbolizePrinter::Color::PURPLE;
+constexpr auto kFileColor = SymbolizePrinter::Color::DEFAULT;
 }  // namespace
 
 constexpr char AddressFormatter::bufTemplate[];
+constexpr std::array<const char*, SymbolizePrinter::Color::NUM>
+    SymbolizePrinter::kColorMap;
 
 AddressFormatter::AddressFormatter() {
   memcpy(buf_, bufTemplate, sizeof(buf_));
@@ -347,31 +349,15 @@ void SymbolizePrinter::print(uintptr_t address, const SymbolizedFrame& frame) {
   }
 }
 
-namespace {
-
-const std::map<SymbolizePrinter::Color, std::string> kColorMap = {
-  { SymbolizePrinter::Color::DEFAULT,  "\x1B[0m" },
-  { SymbolizePrinter::Color::RED,  "\x1B[31m" },
-  { SymbolizePrinter::Color::GREEN,  "\x1B[32m" },
-  { SymbolizePrinter::Color::YELLOW,  "\x1B[33m" },
-  { SymbolizePrinter::Color::BLUE,  "\x1B[34m" },
-  { SymbolizePrinter::Color::CYAN,  "\x1B[36m" },
-  { SymbolizePrinter::Color::WHITE,  "\x1B[37m" },
-  { SymbolizePrinter::Color::PURPLE,  "\x1B[35m" },
-};
-
-}
-
 void SymbolizePrinter::color(SymbolizePrinter::Color color) {
   if ((options_ & COLOR) == 0 &&
       ((options_ & COLOR_IF_TTY) == 0 || !isTty_)) {
     return;
   }
-  auto it = kColorMap.find(color);
-  if (it == kColorMap.end()) {
+  if (color < 0 || color >= kColorMap.size()) {
     return;
   }
-  doPrint(it->second);
+  doPrint(kColorMap[color]);
 }
 
 void SymbolizePrinter::println(uintptr_t address,
@@ -432,16 +418,20 @@ int getFD(const std::ios& stream) {
   return -1;
 }
 
-bool isTty(int options, int fd) {
-  return ((options & SymbolizePrinter::TERSE) == 0 &&
-          (options & SymbolizePrinter::COLOR_IF_TTY) != 0 &&
-          fd >= 0 && ::isatty(fd));
+bool isColorfulTty(int options, int fd) {
+  if ((options & SymbolizePrinter::TERSE) != 0 ||
+      (options & SymbolizePrinter::COLOR_IF_TTY) == 0 ||
+      fd < 0 || !::isatty(fd)) {
+    return false;
+  }
+  auto term = ::getenv("TERM");
+  return !(term == nullptr || term[0] == '\0' || strcmp(term, "dumb") == 0);
 }
 
 }  // anonymous namespace
 
 OStreamSymbolizePrinter::OStreamSymbolizePrinter(std::ostream& out, int options)
-  : SymbolizePrinter(options, isTty(options, getFD(out))),
+  : SymbolizePrinter(options, isColorfulTty(options, getFD(out))),
     out_(out) {
 }
 
@@ -450,7 +440,7 @@ void OStreamSymbolizePrinter::doPrint(StringPiece sp) {
 }
 
 FDSymbolizePrinter::FDSymbolizePrinter(int fd, int options, size_t bufferSize)
-  : SymbolizePrinter(options, isTty(options, fd)),
+  : SymbolizePrinter(options, isColorfulTty(options, fd)),
     fd_(fd),
     buffer_(bufferSize ? IOBuf::create(bufferSize) : nullptr) {
 }
@@ -481,7 +471,7 @@ void FDSymbolizePrinter::flush() {
 }
 
 FILESymbolizePrinter::FILESymbolizePrinter(FILE* file, int options)
-  : SymbolizePrinter(options, isTty(options, fileno(file))),
+  : SymbolizePrinter(options, isColorfulTty(options, fileno(file))),
     file_(file) {
 }
 

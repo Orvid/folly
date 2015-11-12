@@ -40,7 +40,7 @@ TEST(IOBuf, RWCursor) {
   unique_ptr<IOBuf> iobuf2(IOBuf::create(20));
   iobuf2->append(20);
 
-  IOBuf* iob2ptr = iobuf2.get();
+  iobuf2.get();
   iobuf1->prependChain(std::move(iobuf2));
 
   EXPECT_TRUE(iobuf1->isChained());
@@ -415,6 +415,47 @@ TEST(IOBuf, cloneAndInsert) {
   }
 }
 
+TEST(IOBuf, cloneWithEmptyBufAtStart) {
+  folly::IOBufEqual eq;
+  auto empty = IOBuf::create(0);
+  auto hel = IOBuf::create(3);
+  append(hel, "hel");
+  auto lo = IOBuf::create(2);
+  append(lo, "lo");
+
+  auto iobuf = empty->clone();
+  iobuf->prependChain(hel->clone());
+  iobuf->prependChain(lo->clone());
+  iobuf->prependChain(empty->clone());
+  iobuf->prependChain(hel->clone());
+  iobuf->prependChain(lo->clone());
+  iobuf->prependChain(empty->clone());
+  iobuf->prependChain(lo->clone());
+  iobuf->prependChain(hel->clone());
+  iobuf->prependChain(lo->clone());
+  iobuf->prependChain(lo->clone());
+
+  Cursor cursor(iobuf.get());
+  std::unique_ptr<IOBuf> cloned;
+  char data[3];
+  cursor.pull(&data, 3);
+  cursor.clone(cloned, 2);
+  EXPECT_EQ(1, cloned->countChainElements());
+  EXPECT_EQ(2, cloned->length());
+  EXPECT_TRUE(eq(lo, cloned));
+
+  cursor.pull(&data, 3);
+  EXPECT_EQ("hel", std::string(data, sizeof(data)));
+
+  cursor.skip(2);
+  cursor.clone(cloned, 2);
+  EXPECT_TRUE(eq(lo, cloned));
+
+  std::string hello = cursor.readFixedString(5);
+  cursor.clone(cloned, 2);
+  EXPECT_TRUE(eq(lo, cloned));
+}
+
 TEST(IOBuf, Appender) {
   std::unique_ptr<IOBuf> head(IOBuf::create(10));
   append(head, "hello");
@@ -642,6 +683,33 @@ TEST(IOBuf, StringOperations) {
     EXPECT_STREQ("hello", curs.readTerminatedString().c_str());
   }
 
+  // Test reading a null-terminated string from a chain that doesn't contain the
+  // terminator
+  {
+    std::unique_ptr<IOBuf> buf(IOBuf::create(8));
+    Appender app(buf.get(), 0);
+    app.push(reinterpret_cast<const uint8_t*>("hello"), 5);
+    std::unique_ptr<IOBuf> chain(IOBuf::create(8));
+    chain->prependChain(std::move(buf));
+
+    Cursor curs(chain.get());
+    EXPECT_THROW(curs.readTerminatedString(),
+                 std::out_of_range);
+  }
+
+  // Test reading a null-terminated string past the maximum length
+  {
+    std::unique_ptr<IOBuf> buf(IOBuf::create(8));
+    Appender app(buf.get(), 0);
+    app.push(reinterpret_cast<const uint8_t*>("hello\0"), 6);
+    std::unique_ptr<IOBuf> chain(IOBuf::create(8));
+    chain->prependChain(std::move(buf));
+
+    Cursor curs(chain.get());
+    EXPECT_THROW(curs.readTerminatedString('\0', 3),
+                 std::length_error);
+  }
+
   // Test reading a two fixed-length strings from a single buffer with an extra
   // uint8_t at the end
   {
@@ -731,7 +799,6 @@ BENCHMARK(cursorBenchmark, iters) {
 }
 
 BENCHMARK(skipBenchmark, iters) {
-  uint8_t buf;
   while (iters--) {
     Cursor c(iobuf_read_benchmark.get());
     for(int i = 0; i < benchmark_size ; i++) {

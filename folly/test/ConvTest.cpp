@@ -25,14 +25,7 @@
 using namespace std;
 using namespace folly;
 
-static int8_t s8;
-static uint8_t u8;
-static int16_t s16;
-static uint16_t u16;
-static int32_t s32;
-static uint32_t u32;
-static int64_t s64;
-static uint64_t u64;
+
 
 TEST(Conv, digits10Minimal) {
   // Not much of a test (and it's included in the test below anyway).
@@ -90,6 +83,9 @@ TEST(Conv, digits10) {
 
 // Test to<T>(T)
 TEST(Conv, Type2Type) {
+  bool boolV = true;
+  EXPECT_EQ(to<bool>(boolV), true);
+
   int intV = 42;
   EXPECT_EQ(to<int>(intV), 42);
 
@@ -109,6 +105,7 @@ TEST(Conv, Type2Type) {
   EXPECT_EQ(to<folly::StringPiece>(spV), "StringPiece");
 
   // Rvalues
+  EXPECT_EQ(to<bool>(true), true);
   EXPECT_EQ(to<int>(42), 42);
   EXPECT_EQ(to<float>(4.2f), 4.2f);
   EXPECT_EQ(to<double>(.42), .42);
@@ -120,7 +117,7 @@ TEST(Conv, Type2Type) {
 
 TEST(Conv, Integral2Integral) {
   // Same size, different signs
-  s64 = numeric_limits<uint8_t>::max();
+  int64_t s64 = numeric_limits<uint8_t>::max();
   EXPECT_EQ(to<uint8_t>(s64), s64);
 
   s64 = numeric_limits<int8_t>::max();
@@ -640,6 +637,7 @@ TEST(Conv, DoubleToInt) {
   EXPECT_EQ(i, 42);
   try {
     auto i = to<int>(42.1);
+    LOG(ERROR) << "to<int> returned " << i << " instead of throwing";
     EXPECT_TRUE(false);
   } catch (std::range_error& e) {
     //LOG(INFO) << e.what();
@@ -654,7 +652,9 @@ TEST(Conv, EnumToInt) {
   EXPECT_EQ(j, 42);
   try {
     auto i = to<char>(y);
-    LOG(ERROR) << static_cast<unsigned int>(i);
+    LOG(ERROR) << "to<char> returned "
+               << static_cast<unsigned int>(i)
+               << " instead of throwing";
     EXPECT_TRUE(false);
   } catch (std::range_error& e) {
     //LOG(INFO) << e.what();
@@ -677,6 +677,9 @@ TEST(Conv, IntToEnum) {
   EXPECT_EQ(j, 100);
   try {
     auto i = to<A>(5000000000L);
+    LOG(ERROR) << "to<A> returned "
+               << static_cast<unsigned int>(i)
+               << " instead of throwing";
     EXPECT_TRUE(false);
   } catch (std::range_error& e) {
     //LOG(INFO) << e.what();
@@ -693,7 +696,7 @@ TEST(Conv, UnsignedEnum) {
   EXPECT_EQ(e, x);
   try {
     auto i = to<int32_t>(x);
-    LOG(ERROR) << to<uint32_t>(x);
+    LOG(ERROR) << "to<int32_t> returned " << i << " instead of throwing";
     EXPECT_TRUE(false);
   } catch (std::range_error& e) {
   }
@@ -710,7 +713,7 @@ TEST(Conv, UnsignedEnumClass) {
   EXPECT_EQ(e, E::x);
   try {
     auto i = to<int32_t>(E::x);
-    LOG(ERROR) << to<uint32_t>(E::x);
+    LOG(ERROR) << "to<int32_t> returned " << i << " instead of throwing";
     EXPECT_TRUE(false);
   } catch (std::range_error& e) {
   }
@@ -723,6 +726,17 @@ TEST(Conv, EnumClassToString) {
   EXPECT_EQ("foo.4", to<string>("foo.", A::x));
   EXPECT_EQ("foo.420", to<string>("foo.", A::y));
   EXPECT_EQ("foo.65", to<string>("foo.", A::z));
+}
+
+TEST(Conv, IntegralToBool) {
+  EXPECT_FALSE(to<bool>(0));
+  EXPECT_FALSE(to<bool>(0ul));
+
+  EXPECT_TRUE(to<bool>(1));
+  EXPECT_TRUE(to<bool>(1ul));
+
+  EXPECT_TRUE(to<bool>(-42));
+  EXPECT_TRUE(to<bool>(42ul));
 }
 
 template<typename Src>

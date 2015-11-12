@@ -500,19 +500,35 @@ TEST(IPAddress, InSubnetWith6to4) {
   EXPECT_TRUE(ip3.inSubnet(subnet3, 16));
 }
 
-static vector<pair<string, uint8_t> > invalidMasks = {
+static const vector<string> ipv4Strs = {
+  "127.0.0.1",
+  "198.168.0.1",
+  "8.8.0.0",
+};
+TEST(IPAddress, getIPv6For6To4) {
+  for (auto ipv4Str : ipv4Strs) {
+    auto ip = IPAddress(ipv4Str);
+    EXPECT_TRUE(ip.isV4());
+    IPAddressV4 ipv4 = ip.asV4();
+    auto ipv6 = ipv4.getIPv6For6To4();
+    EXPECT_EQ(ipv6.type(), IPAddressV6::Type::T6TO4);
+    auto ipv4New = ipv6.getIPv4For6To4();
+    EXPECT_TRUE(ipv4Str.compare(ipv4New.str()) == 0);
+  }
+}
+
+static const vector<pair<string, uint8_t> > invalidMasks = {
   {"127.0.0.1", 33},
   {"::1", 129},
 };
 TEST(IPAddress, InvalidMask) {
   for (auto& tc : invalidMasks) {
-    uint8_t mask = tc.second;
     auto ip = IPAddress(tc.first);
     EXPECT_THROW(ip.mask(tc.second), IPAddressFormatException);
   }
 }
 
-static vector<pair<string, IPAddressV6::Type> > v6types = {
+static const vector<pair<string, IPAddressV6::Type> > v6types = {
   {"::1", IPAddressV6::Type::NORMAL},
   {"2620:0:1cfe:face:b00c::3", IPAddressV6::Type::NORMAL},
   {"2001:0000:4136:e378:8000:63bf:3fff:fdd2", IPAddressV6::Type::TEREDO},
@@ -556,7 +572,7 @@ TEST(IPAddress, V6Types) {
   }
 }
 
-static vector<pair<string, uint32_t> > provideToLong = {
+static const vector<pair<string, uint32_t> > provideToLong = {
   {"0.0.0.0", 0},
   {"10.0.0.0", 167772160},
   {"126.131.128.23", 2122547223},
@@ -615,7 +631,23 @@ TEST(IPAddress, fromBinaryV4) {
                IPAddressFormatException);
 }
 
-static vector<pair<string, vector<uint8_t> > > provideBinary16Bytes = {
+TEST(IPAddress, toBinaryV4) {
+  for (auto& tc : provideToLong) {
+    SCOPED_TRACE(tc.first);
+    union {
+      uint8_t u8[4];
+      uint32_t u32;
+    } data;
+    data.u32 = Endian::big(tc.second);
+    ByteRange bytes(data.u8, 4);
+
+    auto fromBin = IPAddressV4::fromBinary(bytes);
+    auto toBin = fromBin.toBinary();
+    EXPECT_EQ(bytes, toBin);
+  }
+}
+
+static const vector<pair<string, vector<uint8_t> > > provideBinary16Bytes = {
   {"::0",
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}},
@@ -659,6 +691,17 @@ TEST(IPAddress, fromBinaryV6) {
                IPAddressFormatException);
   EXPECT_THROW(IPAddressV6::fromBinary(ByteRange(data, 20)),
                IPAddressFormatException);
+}
+
+TEST(IPAddress, toBinaryV6) {
+  for (auto& tc : provideBinary16Bytes) {
+    SCOPED_TRACE(tc.first);
+    ByteRange bytes(&tc.second.front(), tc.second.size());
+
+    auto fromBin = IPAddressV6::fromBinary(bytes);
+    auto toBin = fromBin.toBinary();
+    EXPECT_EQ(bytes, toBin);
+  }
 }
 
 TEST_P(IPAddressFlagTest, IsLoopback) {
@@ -911,7 +954,7 @@ TEST(IPAddress, LongestCommonPrefix) {
 
 }
 
-static vector<AddressData> validAddressProvider = {
+static const vector<AddressData> validAddressProvider = {
   AddressData("127.0.0.1", {127,0,0,1}, 4),
   AddressData("69.63.189.16", {69,63,189,16}, 4),
   AddressData("0.0.0.0", {0,0,0,0}, 4),
@@ -921,7 +964,7 @@ static vector<AddressData> validAddressProvider = {
               {38,32,0,0,28,254,250,206,176,12,0,0,0,0,0,3}, 6),
 };
 
-static vector<string> invalidAddressProvider = {
+static const vector<string> invalidAddressProvider = {
   "",
   "foo",
   "1.1.1.256",
@@ -931,7 +974,7 @@ static vector<string> invalidAddressProvider = {
   "[1234]",
 };
 
-static vector<ByteVector> invalidBinaryProvider = {
+static const vector<ByteVector> invalidBinaryProvider = {
   {0x31, 0x32, 0x37, 0x2e, 0x30, 0x30, 0x2e, 0x30, 0x2e, 0x31},
   // foo
   {0x66, 0x6f, 0x6f},
@@ -1027,7 +1070,7 @@ static vector<AddressFlags> flagProvider = {
   AddressFlags("ff02::1", 6, IS_NONROUTABLE | IS_LINK_LOCAL_BROADCAST),
 };
 
-static vector<pair<string, string> > mapProvider = {
+static const vector<pair<string, string> > mapProvider = {
   {"::ffff:192.0.2.128", "192.0.2.128"},
   {"192.0.2.128", "::ffff:192.0.2.128"},
   {"::FFFF:129.144.52.38", "129.144.52.38"},
@@ -1036,7 +1079,7 @@ static vector<pair<string, string> > mapProvider = {
   {"::FFFF:222.1.41.90", "222.1.41.90"},
 };
 
-static vector<MaskData> masksProvider = {
+static const vector<MaskData> masksProvider = {
   MaskData("255.255.255.255", 1, "128.0.0.0"),
   MaskData("255.255.255.255", 2, "192.0.0.0"),
   MaskData("192.0.2.42", 16, "192.0.0.0"),
@@ -1080,7 +1123,7 @@ static vector<MaskData> masksProvider = {
   MaskData("2620:0:1cfe:face:b00c::3", 0, "::")
 };
 
-static vector<MaskBoundaryData> maskBoundaryProvider = {
+static const vector<MaskBoundaryData> maskBoundaryProvider = {
   MaskBoundaryData("10.1.1.1", 24, "10.1.1.1", true),
   MaskBoundaryData("10.1.1.1", 8, "10.1.2.3", true),
   MaskBoundaryData("2620:0:1cfe:face:b00c::1", 48, "2620:0:1cfe::", true),

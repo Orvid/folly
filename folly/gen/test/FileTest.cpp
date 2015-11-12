@@ -30,20 +30,30 @@ using std::vector;
 
 TEST(FileGen, ByLine) {
   auto collect = eachTo<std::string>() | as<vector>();
-  test::TemporaryFile file("ByLine");
-  static const std::string lines(
+  const std::string cases[] = {
       "Hello world\n"
       "This is the second line\n"
       "\n"
       "\n"
       "a few empty lines above\n"
-      "incomplete last line");
-  EXPECT_EQ(lines.size(), write(file.fd(), lines.data(), lines.size()));
+      "incomplete last line",
 
-  auto expected = from({lines}) | resplit('\n') | collect;
-  auto found = byLine(file.path().c_str()) | collect;
+      "complete last line\n",
 
-  EXPECT_TRUE(expected == found);
+      "\n",
+
+      "",
+  };
+
+  for (auto& lines : cases) {
+    test::TemporaryFile file("ByLine");
+    EXPECT_EQ(lines.size(), write(file.fd(), lines.data(), lines.size()));
+
+    auto expected = from({lines}) | resplit('\n') | collect;
+    auto found = byLine(file.path().c_str()) | collect;
+
+    EXPECT_EQ(expected, found) << "For Input: '" << lines << "'";
+  }
 }
 
 class FileGenBufferedTest : public ::testing::TestWithParam<int> { };
@@ -83,6 +93,7 @@ INSTANTIATE_TEST_CASE_P(
     DifferentBufferSizes,
     FileGenBufferedTest,
     ::testing::Values(0, 1, 2, 4, 8, 64, 4096));
+
 int main(int argc, char *argv[]) {
   testing::InitGoogleTest(&argc, argv);
   gflags::ParseCommandLineFlags(&argc, &argv, true);

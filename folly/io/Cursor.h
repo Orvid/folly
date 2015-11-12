@@ -162,6 +162,7 @@ class CursorBase {
     if (LIKELY(length() >= sizeof(T))) {
       val = loadUnaligned<T>(data());
       offset_ += sizeof(T);
+      advanceBufferIfEmpty();
     } else {
       pullSlow(&val, sizeof(T));
     }
@@ -191,6 +192,7 @@ class CursorBase {
     if (LIKELY(length() >= len)) {
       str.append(reinterpret_cast<const char*>(data()), len);
       offset_ += len;
+      advanceBufferIfEmpty();
     } else {
       readFixedStringSlow(&str, len);
     }
@@ -210,7 +212,7 @@ class CursorBase {
       size_t maxLength = std::numeric_limits<size_t>::max()) {
     std::string str;
 
-    for (;;) {
+    while (!isAtEnd()) {
       const uint8_t* buf = data();
       size_t buflen = length();
 
@@ -232,16 +234,14 @@ class CursorBase {
       }
 
       skip(i);
-
-      if (UNLIKELY(!tryAdvanceBuffer())) {
-        throw std::out_of_range("string underflow");
-      }
     }
+    throw std::out_of_range("terminator not found");
   }
 
   size_t skipAtMost(size_t len) {
     if (LIKELY(length() >= len)) {
       offset_ += len;
+      advanceBufferIfEmpty();
       return len;
     }
     return skipAtMostSlow(len);
@@ -250,6 +250,7 @@ class CursorBase {
   void skip(size_t len) {
     if (LIKELY(length() >= len)) {
       offset_ += len;
+      advanceBufferIfEmpty();
     } else {
       skipSlow(len);
     }
@@ -260,6 +261,7 @@ class CursorBase {
     if (LIKELY(length() >= len)) {
       memcpy(buf, data(), len);
       offset_ += len;
+      advanceBufferIfEmpty();
       return len;
     }
     return pullAtMostSlow(buf, len);
@@ -269,6 +271,7 @@ class CursorBase {
     if (LIKELY(length() >= len)) {
       memcpy(buf, data(), len);
       offset_ += len;
+      advanceBufferIfEmpty();
     } else {
       pullSlow(buf, len);
     }
@@ -321,6 +324,7 @@ class CursorBase {
         }
 
         offset_ += len;
+        advanceBufferIfEmpty();
         return copied + len;
       }
 
@@ -419,6 +423,12 @@ class CursorBase {
     return true;
   }
 
+  void advanceBufferIfEmpty() {
+    if (length() == 0) {
+      tryAdvanceBuffer();
+    }
+  }
+
   BufType* crtBuf_;
   size_t offset_ = 0;
 
@@ -433,6 +443,7 @@ class CursorBase {
     }
     str->append(reinterpret_cast<const char*>(data()), len);
     offset_ += len;
+    advanceBufferIfEmpty();
   }
 
   size_t pullAtMostSlow(void* buf, size_t len) {
@@ -449,6 +460,7 @@ class CursorBase {
     }
     memcpy(p, data(), len);
     offset_ += len;
+    advanceBufferIfEmpty();
     return copied + len;
   }
 
@@ -468,6 +480,7 @@ class CursorBase {
       len -= available;
     }
     offset_ += len;
+    advanceBufferIfEmpty();
     return skipped + len;
   }
 

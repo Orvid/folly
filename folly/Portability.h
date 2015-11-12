@@ -17,6 +17,8 @@
 #ifndef FOLLY_PORTABILITY_H_
 #define FOLLY_PORTABILITY_H_
 
+#include <string.h>
+
 #include <cstddef>
 
 #ifndef FOLLY_NO_CONFIG
@@ -192,18 +194,15 @@
 namespace std { typedef ::max_align_t max_align_t; }
 #endif
 
-/* Define macro wrappers for C++11's "final" and "override" keywords, which
- * are supported in gcc 4.7 but not gcc 4.6. */
-#if !defined(FOLLY_FINAL) && !defined(FOLLY_OVERRIDE)
-# if defined(__clang__) || __GNUC_PREREQ(4, 7)
-#  define FOLLY_FINAL final
-#  define FOLLY_OVERRIDE override
-# elif defined(_MSC_VER) && _MSC_VER >= 1600
-#  define FOLLY_FINAL final
-#  define FOLLY_OVERRIDE override
+// portable version check for clang
+#ifndef __CLANG_PREREQ
+# if defined __clang__ && defined __clang_major__ && defined __clang_minor__
+/* nolint */
+#  define __CLANG_PREREQ(maj, min) \
+    ((__clang_major__ << 16) + __clang_minor__ >= ((maj) << 16) + (min))
 # else
-#  define FOLLY_FINAL /**/
-#  define FOLLY_OVERRIDE /**/
+/* nolint */
+#  define __CLANG_PREREQ(maj, min) 0
 # endif
 #endif
 
@@ -241,6 +240,16 @@ namespace std { typedef ::max_align_t max_align_t; }
 #else
 #define FOLLY_NAMESPACE_STD_BEGIN     namespace std {
 #define FOLLY_NAMESPACE_STD_END       }
+#endif
+
+// If the new c++ ABI is used, __cxx11 inline namespace needs to be added to
+// some types, e.g. std::list.
+#if _GLIBCXX_USE_CXX11_ABI
+# define FOLLY_GLIBCXX_NAMESPACE_CXX11_BEGIN _GLIBCXX_BEGIN_NAMESPACE_CXX11
+# define FOLLY_GLIBCXX_NAMESPACE_CXX11_END   _GLIBCXX_END_NAMESPACE_CXX11
+#else
+# define FOLLY_GLIBCXX_NAMESPACE_CXX11_BEGIN
+# define FOLLY_GLIBCXX_NAMESPACE_CXX11_END
 #endif
 
 // Some platforms lack clock_gettime(2) and clock_getres(2). Inject our own
@@ -334,6 +343,9 @@ typedef SSIZE_T ssize_t;
 #  define FOLLY_SSE_MINOR 0
 # endif
 #endif
+
+#define FOLLY_SSE_PREREQ(major, minor) \
+  (FOLLY_SSE > major || FOLLY_SSE == major && FOLLY_SSE_MINOR >= minor)
 
 #if FOLLY_UNUSUAL_GFLAGS_NAMESPACE
 namespace FOLLY_GFLAGS_NAMESPACE { }
@@ -486,6 +498,13 @@ inline void asm_pause() {
 #endif
 }
 
+constexpr size_t constexpr_strlen(const char* s) {
+#if defined(__clang__)
+  return __builtin_strlen(s);
+#else
+  return strlen(s);
+#endif
 }
 
+} // namespace folly
 #endif // FOLLY_PORTABILITY_H_

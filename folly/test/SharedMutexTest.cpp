@@ -478,9 +478,11 @@ static void runContendedReaders(size_t numOps,
                                 size_t numThreads,
                                 bool useSeparateLocks) {
   char padding1[64];
+  (void)padding1;
   Lock globalLock;
   int valueProtectedByLock = 10;
   char padding2[64];
+  (void)padding2;
   Atom<bool> go(false);
   Atom<bool>* goPtr = &go; // workaround for clang bug
   vector<thread> threads(numThreads);
@@ -575,9 +577,11 @@ static void runMixed(size_t numOps,
                      double writeFraction,
                      bool useSeparateLocks) {
   char padding1[64];
+  (void)padding1;
   Lock globalLock;
   int valueProtectedByLock = 0;
   char padding2[64];
+  (void)padding2;
   Atom<bool> go(false);
   Atom<bool>* goPtr = &go; // workaround for clang bug
   vector<thread> threads(numThreads);
@@ -598,7 +602,6 @@ static void runMixed(size_t numOps,
           long randVal;
           lrand48_r(&buffer, &randVal);
           bool writeOp = randVal < writeThreshold;
-          SharedMutexToken token;
           if (writeOp) {
             locker.lock(lock);
             if (!useSeparateLocks) {
@@ -1227,8 +1230,10 @@ static void burn(size_t n) {
 template <typename Lock, template <typename> class Atom = atomic>
 static void runPingPong(size_t numRounds, size_t burnCount) {
   char padding1[56];
+  (void)padding1;
   pair<Lock, char[56]> locks[3];
   char padding2[56];
+  (void)padding2;
 
   Atom<int> avail(0);
   auto availPtr = &avail; // workaround for clang crash
@@ -1703,7 +1708,7 @@ BENCH_REL (boost_shared_ping_pong, burn1M, 1000, 1000000)
 BENCH_REL (pthrd_rwlock_ping_pong, burn1M, 1000, 1000000)
 
 // Reproduce with 10 minutes and
-//   sudo nice -n -20 \
+//   sudo nice -n -20
 //     shared_mutex_test --benchmark --bm_min_iters=1000000
 //
 // Comparison use folly::RWSpinLock as the baseline, with the

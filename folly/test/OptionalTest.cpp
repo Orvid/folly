@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <string>
+#include <type_traits>
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -117,7 +118,11 @@ public:
     other.s_ = "";
   }
   MoveTester& operator=(const MoveTester&) = default;
-  MoveTester& operator=(MoveTester&&) = default;
+  MoveTester& operator=(MoveTester&& other) noexcept {
+    s_ = std::move(other.s_);
+    other.s_ = "";
+    return *this;
+  }
 private:
   friend bool operator==(const MoveTester& o1, const MoveTester& o2);
   std::string s_;
@@ -398,6 +403,7 @@ TEST(Optional, Conversions) {
 
   // intended explicit operator bool, for if (opt).
   bool b(mbool);
+  EXPECT_FALSE(b);
 
   // Truthy tests work and are not ambiguous
   if (mbool && mshort && mstr && mint) { // only checks not-empty
@@ -535,6 +541,10 @@ TEST(Optional, AssignmentContained) {
 TEST(Optional, Exceptions) {
   Optional<int> empty;
   EXPECT_THROW(empty.value(), OptionalEmptyException);
+}
+
+TEST(Optional, NoThrowDefaultConstructible) {
+  EXPECT_TRUE(std::is_nothrow_default_constructible<Optional<bool>>::value);
 }
 
 }

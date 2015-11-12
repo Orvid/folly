@@ -101,7 +101,10 @@ namespace folly {
 // has issues when inlining is used, so disable that as well.
 #if defined(__clang__)
 # if __has_feature(address_sanitizer)
-#  if __has_attribute(__no_address_safety_analysis__)
+#  if __has_attribute(__no_sanitize__)
+#   define FBSTRING_DISABLE_ADDRESS_SANITIZER \
+      __attribute__((__no_sanitize__("address"), __noinline__))
+#  elif __has_attribute(__no_address_safety_analysis__)
 #   define FBSTRING_DISABLE_ADDRESS_SANITIZER \
       __attribute__((__no_address_safety_analysis__, __noinline__))
 #  elif __has_attribute(__no_sanitize_address__)
@@ -256,18 +259,9 @@ private:
 */
 
 /**
- * gcc-4.7 throws what appears to be some false positive uninitialized
- * warnings for the members of the MediumLarge struct.  So, mute them here.
- */
-#if defined(__GNUC__) && !defined(__clang__)
-# pragma GCC diagnostic push
-# pragma GCC diagnostic ignored "-Wuninitialized"
-#endif
-
-/**
  * This is the core of the string. The code should work on 32- and
- * 64-bit architectures and with any Char size. Porting to big endian
- * architectures would require some changes.
+ * 64-bit and both big- and little-endianan architectures with any
+ * Char size.
  *
  * The storage is selected as follows (assuming we store one-byte
  * characters on a 64-bit machine): (a) "small" strings between 0 and
@@ -279,23 +273,27 @@ private:
  * reference-counted and copied lazily. the reference count is
  * allocated right before the character array.
  *
- * The discriminator between these three strategies sits in the two
- * most significant bits of the rightmost char of the storage. If
- * neither is set, then the string is small (and its length sits in
- * the lower-order bits of that rightmost character). If the MSb is
- * set, the string is medium width. If the second MSb is set, then the
- * string is large.
+ * The discriminator between these three strategies sits in two
+ * bits of the rightmost char of the storage. If neither is set, then the
+ * string is small (and its length sits in the lower-order bits on
+ * little-endian or the high-order bits on big-endian of that
+ * rightmost character). If the MSb is set, the string is medium width.
+ * If the second MSb is set, then the string is large. On little-endian,
+ * these 2 bits are the 2 MSbs of MediumLarge::capacity_, while on
+ * big-endian, these 2 bits are the 2 LSbs. This keeps both little-endian
+ * and big-endian fbstring_core equivalent with merely different ops used
+ * to extract capacity/category.
  */
 template <class Char> class fbstring_core {
+protected:
+  static constexpr bool kIsLittleEndian =
+    __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__;
+  static constexpr bool kIsBigEndian =
+    __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__;
+  static_assert(
+      kIsLittleEndian || kIsBigEndian, "unable to identify endianness");
 public:
-  fbstring_core() noexcept {
-    // Only initialize the tag, will set the MSBs (i.e. the small
-    // string size) to zero too
-    ml_.capacity_ = maxSmallSize << (8 * (sizeof(size_t) - sizeof(Char)));
-    // or: setSmallSize(0);
-    writeTerminator();
-    assert(category() == Category::isSmall && size() == 0);
-  }
+  fbstring_core() noexcept { reset(); }
 
   fbstring_core(const fbstring_core & rhs) {
     assert(&rhs != this);
@@ -307,18 +305,12 @@ public:
           "fbstring layout failure");
       static_assert(offsetof(MediumLarge, capacity_) == 2 * sizeof(ml_.data_),
           "fbstring layout failure");
-      const size_t size = rhs.smallSize();
-      if (size == 0) {
-        ml_.capacity_ = rhs.ml_.capacity_;
-        writeTerminator();
-      } else {
-        // Just write the whole thing, don't look at details. In
-        // particular we need to copy capacity anyway because we want
-        // to set the size (don't forget that the last character,
-        // which stores a short string's length, is shared with the
-        // ml_.capacity field).
-        ml_ = rhs.ml_;
-      }
+      // Just write the whole thing, don't look at details. In
+      // particular we need to copy capacity anyway because we want
+      // to set the size (don't forget that the last character,
+      // which stores a short string's length, is shared with the
+      // ml_.capacity field).
+      ml_ = rhs.ml_;
       assert(category() == Category::isSmall && this->size() == rhs.size());
     } else if (rhs.category() == Category::isLarge) {
       // Large strings are just refcounted
@@ -338,8 +330,7 @@ public:
       // No need for writeTerminator() here, we copied one extra
       // element just above.
       ml_.size_ = rhs.ml_.size_;
-      ml_.capacity_ = (allocSize / sizeof(Char) - 1)
-                      | static_cast<category_type>(Category::isMedium);
+      ml_.setCapacity(allocSize / sizeof(Char) - 1, Category::isMedium);
       assert(category() == Category::isMedium);
     }
     assert(size() == rhs.size());
@@ -347,14 +338,11 @@ public:
   }
 
   fbstring_core(fbstring_core&& goner) noexcept {
-    if (goner.category() == Category::isSmall) {
-      // Just copy, leave the goner in peace
-      new(this) fbstring_core(goner.small_, goner.smallSize());
-    } else {
-      // Take goner's guts
-      ml_ = goner.ml_;
+    // Take goner's guts
+    ml_ = goner.ml_;
+    if (goner.category() != Category::isSmall) {
       // Clean goner's carcass
-      goner.setSmallSize(0);
+      goner.reset();
     }
   }
 
@@ -414,16 +402,14 @@ public:
       ml_.data_ = static_cast<Char*>(checkedMalloc(allocSize));
       fbstring_detail::pod_copy(data, data + size, ml_.data_);
       ml_.size_ = size;
-      ml_.capacity_ = (allocSize / sizeof(Char) - 1)
-                      | static_cast<category_type>(Category::isMedium);
+      ml_.setCapacity(allocSize / sizeof(Char) - 1, Category::isMedium);
     } else {
       // Large strings are allocated differently
       size_t effectiveCapacity = size;
       auto const newRC = RefCounted::create(data, & effectiveCapacity);
       ml_.data_ = newRC->data_;
       ml_.size_ = size;
-      ml_.capacity_ = effectiveCapacity
-                      | static_cast<category_type>(Category::isLarge);
+      ml_.setCapacity(effectiveCapacity, Category::isLarge);
     }
     writeTerminator();
   }
@@ -458,12 +444,11 @@ public:
       ml_.data_ = data;
       ml_.size_ = size;
       // Don't forget about null terminator
-      ml_.capacity_ = (allocatedSize - 1)
-                      | static_cast<category_type>(Category::isMedium);
+      ml_.setCapacity(allocatedSize - 1, Category::isMedium);
     } else {
       // No need for the memory
       free(data);
-      setSmallSize(0);
+      reset();
     }
   }
 
@@ -556,8 +541,7 @@ public:
         // we have + 1 above.
         RefCounted::decrementRefs(ml_.data_);
         ml_.data_ = newRC->data_;
-        ml_.capacity_ = minCapacity
-                        | static_cast<category_type>(Category::isLarge);
+        ml_.setCapacity(minCapacity, Category::isLarge);
         // size remains unchanged
       } else {
         // String is not shared, so let's try to realloc (if needed)
@@ -567,8 +551,7 @@ public:
                RefCounted::reallocate(ml_.data_, ml_.size_,
                                       ml_.capacity(), minCapacity);
           ml_.data_ = newRC->data_;
-          ml_.capacity_ = minCapacity
-                          | static_cast<category_type>(Category::isLarge);
+          ml_.setCapacity(minCapacity, Category::isLarge);
           writeTerminator();
         }
         assert(capacity() >= minCapacity);
@@ -589,8 +572,7 @@ public:
             (ml_.capacity() + 1) * sizeof(Char),
             capacityBytes));
         writeTerminator();
-        ml_.capacity_ = (capacityBytes / sizeof(Char) - 1)
-                        | static_cast<category_type>(Category::isMedium);
+        ml_.setCapacity(capacityBytes / sizeof(Char) - 1, Category::isMedium);
       } else {
         // Conversion from medium to large string
         fbstring_core nascent;
@@ -613,8 +595,7 @@ public:
         // No need for writeTerminator(), we wrote it above with + 1.
         ml_.data_ = newRC->data_;
         ml_.size_ = size;
-        ml_.capacity_ = minCapacity
-                        | static_cast<category_type>(Category::isLarge);
+        ml_.setCapacity(minCapacity, Category::isLarge);
         assert(capacity() >= minCapacity);
       } else if (minCapacity > maxSmallSize) {
         // medium
@@ -627,8 +608,7 @@ public:
         // No need for writeTerminator(), we wrote it above with + 1.
         ml_.data_ = data;
         ml_.size_ = size;
-        ml_.capacity_ = (allocSizeBytes / sizeof(Char) - 1)
-                        | static_cast<category_type>(Category::isMedium);
+        ml_.setCapacity(allocSizeBytes / sizeof(Char) - 1, Category::isMedium);
       } else {
         // small
         // Nothing to do, everything stays put
@@ -728,15 +708,18 @@ private:
   // Disabled
   fbstring_core & operator=(const fbstring_core & rhs);
 
-  struct MediumLarge {
-    Char * data_;
-    size_t size_;
-    size_t capacity_;
-
-    size_t capacity() const {
-      return capacity_ & capacityExtractMask;
-    }
-  };
+  // Equivalent to setSmallSize(0), but with specialized
+  // writeTerminator which doesn't re-check the category after
+  // capacity_ is overwritten.
+  void reset() {
+    // Only initialize the tag, will set the MSBs (i.e. the small
+    // string size) to zero too.
+    ml_.capacity_ = kIsLittleEndian
+      ? maxSmallSize << (8 * (sizeof(size_t) - sizeof(Char)))
+      : maxSmallSize << 2;
+    small_[0] = '\0';
+    assert(category() == Category::isSmall && size() == 0);
+  }
 
   struct RefCounted {
     std::atomic<size_t> refCount_;
@@ -805,6 +788,42 @@ private:
     }
   };
 
+  typedef std::conditional<sizeof(size_t) == 4, uint32_t, uint64_t>::type
+          category_type;
+
+  enum class Category : category_type {
+    isSmall = 0,
+    isMedium = kIsLittleEndian
+      ? sizeof(size_t) == 4 ? 0x80000000 : 0x8000000000000000
+      : 0x2,
+    isLarge =  kIsLittleEndian
+      ? sizeof(size_t) == 4 ? 0x40000000 : 0x4000000000000000
+      : 0x1,
+  };
+
+  Category category() const {
+    // works for both big-endian and little-endian
+    return static_cast<Category>(ml_.capacity_ & categoryExtractMask);
+  }
+
+  struct MediumLarge {
+    Char * data_;
+    size_t size_;
+    size_t capacity_;
+
+    size_t capacity() const {
+      return kIsLittleEndian
+        ? capacity_ & capacityExtractMask
+        : capacity_ >> 2;
+    }
+
+    void setCapacity(size_t cap, Category cat) {
+        capacity_ = kIsLittleEndian
+          ? cap | static_cast<category_type>(cat)
+          : (cap << 2) | static_cast<category_type>(cat);
+    }
+  };
+
   union {
     Char small_[sizeof(MediumLarge) / sizeof(Char)];
     MediumLarge ml_;
@@ -815,32 +834,22 @@ private:
     maxSmallSize = lastChar / sizeof(Char),
     maxMediumSize = 254 / sizeof(Char),            // coincides with the small
                                                    // bin size in dlmalloc
-    categoryExtractMask = sizeof(size_t) == 4 ? 0xC0000000 : 0xC000000000000000,
-    capacityExtractMask = ~categoryExtractMask,
+    categoryExtractMask = kIsLittleEndian
+      ? sizeof(size_t) == 4 ? 0xC0000000 : 0xC000000000000000
+      : 0x3,
+    capacityExtractMask = kIsLittleEndian
+      ? ~categoryExtractMask
+      : 0x0 /*unused*/,
   };
   static_assert(!(sizeof(MediumLarge) % sizeof(Char)),
                 "Corrupt memory layout for fbstring.");
 
-  typedef std::conditional<sizeof(size_t) == 4, uint32_t, uint64_t>::type
-          category_type;
-
-  enum class Category : category_type {
-    isSmall = 0,
-    isMedium = sizeof(size_t) == 4 ? 0x80000000 : 0x8000000000000000,
-    isLarge =  sizeof(size_t) == 4 ? 0x40000000 : 0x4000000000000000,
-  };
-
-  Category category() const {
-    // Assumes little endian
-    return static_cast<Category>(ml_.capacity_ & categoryExtractMask);
-  }
-
   size_t smallSize() const {
-    assert(category() == Category::isSmall &&
-           static_cast<size_t>(small_[maxSmallSize])
-           <= static_cast<size_t>(maxSmallSize));
-    return static_cast<size_t>(maxSmallSize)
-      - static_cast<size_t>(small_[maxSmallSize]);
+    assert(category() == Category::isSmall);
+    auto shift = kIsLittleEndian ? 0 : 2;
+    auto smallShifted = static_cast<size_t>(small_[maxSmallSize]) >> shift;
+    assert(static_cast<size_t>(maxSmallSize) >= smallShifted);
+    return static_cast<size_t>(maxSmallSize) - smallShifted;
   }
 
   void setSmallSize(size_t s) {
@@ -848,14 +857,12 @@ private:
     // so don't assume anything about the previous value of
     // small_[maxSmallSize].
     assert(s <= maxSmallSize);
-    small_[maxSmallSize] = maxSmallSize - s;
+    small_[maxSmallSize] = kIsLittleEndian
+      ? maxSmallSize - s
+      : (maxSmallSize - s) << 2;
     writeTerminator();
   }
 };
-
-#if defined(__GNUC__) && !defined(__clang__)
-# pragma GCC diagnostic pop
-#endif
 
 #ifndef _LIBSTDCXX_FBSTRING
 /**
@@ -999,7 +1006,23 @@ private:
 
 public:
   // C++11 21.4.2 construct/copy/destroy
-  explicit basic_fbstring(const A& /*a*/ = A()) noexcept {
+
+  // Note: while the following two constructors can be (and previously were)
+  // collapsed into one constructor written this way:
+  //
+  //   explicit basic_fbstring(const A& a = A()) noexcept { }
+  //
+  // This can cause Clang (at least version 3.7) to fail with the error:
+  //   "chosen constructor is explicit in copy-initialization ...
+  //   in implicit initialization of field '(x)' with omitted initializer"
+  //
+  // if used in a struct which is default-initialized.  Hence the split into
+  // these two separate constructors.
+
+  basic_fbstring() noexcept : basic_fbstring(A()) {
+  }
+
+  explicit basic_fbstring(const A&) noexcept {
   }
 
   basic_fbstring(const basic_fbstring& str)

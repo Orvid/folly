@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <folly/Optional.h>
 #include <folly/io/async/AsyncTimeout.h>
 #include <folly/io/async/DelayedDestruction.h>
 
@@ -33,7 +34,7 @@ namespace folly {
  * Hashed Hierarchical Wheel Timer
  *
  * Comparison:
- * TAsyncTimeout - a single timeout.
+ * AsyncTimeout - a single timeout.
  * HHWheelTimer - a set of efficient timeouts with different interval,
  *    but timeouts are not exact.
  *
@@ -58,7 +59,17 @@ namespace folly {
 class HHWheelTimer : private folly::AsyncTimeout,
                      public folly::DelayedDestruction {
  public:
-  typedef std::unique_ptr<HHWheelTimer, Destructor> UniquePtr;
+  // This type has always been a misnomer, because it is not a unique pointer.
+  using UniquePtr = IntrusivePtr<HHWheelTimer>;
+
+  template <typename... Args>
+  static UniquePtr newTimer(Args&&... args) {
+    std::unique_ptr<HHWheelTimer, Destructor> instance(
+        new HHWheelTimer(std::forward<Args>(args)...));
+    // Avoid the weird semantics of the Destructor by managing ownership
+    // entirely from the IntrusivePtr.
+    return UniquePtr(instance);
+  }
 
   /**
    * A callback to be notified when a timeout has expired.
@@ -128,6 +139,7 @@ class HHWheelTimer : private folly::AsyncTimeout,
     void cancelTimeoutImpl();
 
     HHWheelTimer* wheel_;
+    folly::Optional<DestructorGuard> wheelGuard_;
     std::chrono::milliseconds expiration_;
 
     typedef boost::intrusive::list_member_hook<
@@ -287,7 +299,7 @@ class HHWheelTimer : private folly::AsyncTimeout,
   HHWheelTimer(HHWheelTimer const &) = delete;
   HHWheelTimer& operator=(HHWheelTimer const &) = delete;
 
-  // Methods inherited from TAsyncTimeout
+  // Methods inherited from AsyncTimeout
   virtual void timeoutExpired() noexcept;
 
   std::chrono::milliseconds interval_;

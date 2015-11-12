@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <boost/operators.hpp>
 #include <climits>
+#include <cstddef>
 #include <cstring>
 #include <glog/logging.h>
 #include <iosfwd>
@@ -48,6 +49,8 @@
 #include <folly/CpuId.h>
 #include <folly/Traits.h>
 #include <folly/Likely.h>
+#include <folly/detail/RangeCommon.h>
+#include <folly/detail/RangeSse42.h>
 
 // Ignore shadowing warnings within this file, so includers can use -Wshadow.
 #pragma GCC diagnostic push
@@ -198,15 +201,16 @@ public:
   constexpr Range(Iter start, size_t size)
       : b_(start), e_(start + size) { }
 
-#if FOLLY_HAVE_CONSTEXPR_STRLEN
+# if !defined(__clang__) || __clang_major__ > 3 || \
+  (__clang_major__ == 3 && __clang_minor__ > 6)
+  // Clang 3.6 crashes on this line
+  /* implicit */ Range(std::nullptr_t) = delete;
+# endif
+
   template <class T = Iter, typename detail::IsCharPointer<T>::type = 0>
   constexpr /* implicit */ Range(Iter str)
-      : b_(str), e_(str + strlen(str)) {}
-#else
-  template <class T = Iter, typename detail::IsCharPointer<T>::type = 0>
-  /* implicit */ Range(Iter str)
-      : b_(str), e_(str + strlen(str)) {}
-#endif
+      : b_(str), e_(str + constexpr_strlen(str)) {}
+
   template <class T = Iter, typename detail::IsCharPointer<T>::const_type = 0>
   /* implicit */ Range(const std::string& str)
       : b_(str.data()), e_(b_ + str.size()) {}
@@ -1000,13 +1004,6 @@ size_t qfind(const Range<T>& haystack,
 
 namespace detail {
 
-size_t qfind_first_byte_of_nosse(const StringPiece haystack,
-                                 const StringPiece needles);
-
-#if FOLLY_HAVE_EMMINTRIN_H && __GNUC_PREREQ(4, 6)
-size_t qfind_first_byte_of_sse42(const StringPiece haystack,
-                                 const StringPiece needles);
-
 inline size_t qfind_first_byte_of(const StringPiece haystack,
                                   const StringPiece needles) {
   static auto const qfind_first_byte_of_fn =
@@ -1014,13 +1011,6 @@ inline size_t qfind_first_byte_of(const StringPiece haystack,
                            : qfind_first_byte_of_nosse;
   return qfind_first_byte_of_fn(haystack, needles);
 }
-
-#else
-inline size_t qfind_first_byte_of(const StringPiece haystack,
-                                  const StringPiece needles) {
-  return qfind_first_byte_of_nosse(haystack, needles);
-}
-#endif // FOLLY_HAVE_EMMINTRIN_H
 
 } // namespace detail
 
@@ -1054,9 +1044,6 @@ struct AsciiCaseInsensitive {
     return (k >= 'a' && k <= 'z');
   }
 };
-
-extern const AsciiCaseSensitive asciiCaseSensitive;
-extern const AsciiCaseInsensitive asciiCaseInsensitive;
 
 template <class T>
 size_t qfind(const Range<T>& haystack,
@@ -1115,7 +1102,7 @@ inline size_t rfind(const Range<const unsigned char*>& haystack,
 template <class T>
 size_t qfind_first_of(const Range<T>& haystack,
                       const Range<T>& needles) {
-  return qfind_first_of(haystack, needles, asciiCaseSensitive);
+  return qfind_first_of(haystack, needles, AsciiCaseSensitive());
 }
 
 // specialization for StringPiece

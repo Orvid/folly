@@ -24,6 +24,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <limits.h>
 #include <map>
 #include <mutex>
 #include <set>
@@ -537,6 +538,21 @@ TEST(ThreadLocal, Fork2) {
     EXPECT_TRUE(false) << "fork failed";
   }
 }
+
+// clang is unable to compile this code unless in c++14 mode.
+#if __cplusplus >= 201402L
+namespace {
+// This will fail to compile unless ThreadLocal{Ptr} has a constexpr
+// default constructor. This ensures that ThreadLocal is safe to use in
+// static constructors without worrying about initialization order
+class ConstexprThreadLocalCompile {
+  ThreadLocal<int> a_;
+  ThreadLocalPtr<int> b_;
+
+  constexpr ConstexprThreadLocalCompile() {}
+};
+}
+#endif
 
 // Simple reference implementation using pthread_get_specific
 template<typename T>

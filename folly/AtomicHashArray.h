@@ -42,16 +42,38 @@
 
 namespace folly {
 
+struct AtomicHashArrayLinearProbeFcn
+{
+  inline size_t operator()(size_t idx, size_t numProbes, size_t capacity) const{
+    idx += 1; // linear probing
+
+    // Avoid modulus because it's slow
+    return LIKELY(idx < capacity) ? idx : (idx - capacity);
+  }
+};
+
+struct AtomicHashArrayQuadraticProbeFcn
+{
+  inline size_t operator()(size_t idx, size_t numProbes, size_t capacity) const{
+    idx += numProbes; // quadratic probing
+
+    // Avoid modulus because it's slow
+    return LIKELY(idx < capacity) ? idx : (idx - capacity);
+  }
+};
+
 template <class KeyT, class ValueT,
           class HashFcn = std::hash<KeyT>,
           class EqualFcn = std::equal_to<KeyT>,
-          class Allocator = std::allocator<char>>
+          class Allocator = std::allocator<char>,
+          class ProbeFcn = AtomicHashArrayLinearProbeFcn>
 class AtomicHashMap;
 
 template <class KeyT, class ValueT,
           class HashFcn = std::hash<KeyT>,
           class EqualFcn = std::equal_to<KeyT>,
-          class Allocator = std::allocator<char>>
+          class Allocator = std::allocator<char>,
+          class ProbeFcn = AtomicHashArrayLinearProbeFcn>
 class AtomicHashArray : boost::noncopyable {
   static_assert((std::is_convertible<KeyT,int32_t>::value ||
                  std::is_convertible<KeyT,int64_t>::value ||
@@ -161,11 +183,21 @@ class AtomicHashArray : boost::noncopyable {
    *   iterator is set to the existing entry.
    */
   std::pair<iterator,bool> insert(const value_type& r) {
-    SimpleRetT ret = insertInternal(r.first, r.second);
-    return std::make_pair(iterator(this, ret.idx), ret.success);
+    return emplace(r.first, r.second);
   }
   std::pair<iterator,bool> insert(value_type&& r) {
-    SimpleRetT ret = insertInternal(r.first, std::move(r.second));
+    return emplace(r.first, std::move(r.second));
+  }
+
+  /*
+   * emplace --
+   *
+   *   Same contract as insert(), but performs in-place construction
+   *   of the value type using the specified arguments.
+   */
+  template <typename... ArgTs>
+  std::pair<iterator,bool> emplace(KeyT key_in, ArgTs&&... vCtorArgs) {
+    SimpleRetT ret = insertInternal(key_in, std::forward<ArgTs>(vCtorArgs)...);
     return std::make_pair(iterator(this, ret.idx), ret.success);
   }
 
@@ -230,15 +262,22 @@ class AtomicHashArray : boost::noncopyable {
   /* Private data and helper functions... */
 
  private:
-  friend class AtomicHashMap<KeyT, ValueT, HashFcn, EqualFcn, Allocator>;
+friend class AtomicHashMap<KeyT,
+                           ValueT,
+                           HashFcn,
+                           EqualFcn,
+                           Allocator,
+                           ProbeFcn>;
 
   struct SimpleRetT { size_t idx; bool success;
     SimpleRetT(size_t i, bool s) : idx(i), success(s) {}
     SimpleRetT() = default;
   };
 
-  template <class T>
-  SimpleRetT insertInternal(KeyT key, T&& value);
+
+
+  template <typename... ArgTs>
+  SimpleRetT insertInternal(KeyT key, ArgTs&&... vCtorArgs);
 
   SimpleRetT findInternal(const KeyT key);
 
@@ -297,12 +336,7 @@ class AtomicHashArray : boost::noncopyable {
     return LIKELY(probe < capacity_) ? probe : hashVal % capacity_;
   }
 
-  inline size_t probeNext(size_t idx, size_t /*numProbes*/) {
-    //idx += numProbes; // quadratic probing
-    idx += 1; // linear probing
-    // Avoid modulus because it's slow
-    return LIKELY(idx < capacity_) ? idx : (idx - capacity_);
-  }
+
 }; // AtomicHashArray
 
 } // namespace folly

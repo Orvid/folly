@@ -56,6 +56,10 @@ enum class WriteFlags : uint32_t {
    * will be acknowledged.
    */
   EOR = 0x02,
+  /*
+   * this indicates that only the write side of socket should be shutdown
+   */
+  WRITE_SHUTDOWN = 0x04,
 };
 
 /*
@@ -226,6 +230,7 @@ class AsyncTransport : public DelayedDestruction, public AsyncSocketBase {
   virtual bool isPending() const {
     return readable();
   }
+
   /**
    * Determine if transport is connected to the endpoint
    *
@@ -331,12 +336,8 @@ class AsyncTransport : public DelayedDestruction, public AsyncSocketBase {
   virtual ~AsyncTransport() = default;
 };
 
-// Transitional intermediate interface. This is deprecated.
-// Wrapper around folly::AsyncTransport, that includes read/write callbacks
-class AsyncTransportWrapper : virtual public AsyncTransport {
+class AsyncReader {
  public:
-  typedef std::unique_ptr<AsyncTransportWrapper, Destructor> UniquePtr;
-
   class ReadCallback {
    public:
     virtual ~ReadCallback() = default;
@@ -453,6 +454,22 @@ class AsyncTransportWrapper : virtual public AsyncTransport {
     virtual void readErr(const AsyncSocketException& ex) noexcept = 0;
   };
 
+  // Read methods that aren't part of AsyncTransport.
+  virtual void setReadCB(ReadCallback* callback) = 0;
+  virtual ReadCallback* getReadCallback() const = 0;
+
+ protected:
+  virtual ~AsyncReader() = default;
+};
+
+class AsyncWriter {
+ public:
+  class BufferCallback {
+   public:
+    virtual ~BufferCallback() {}
+    virtual void onEgressBuffered() = 0;
+  };
+
   class WriteCallback {
    public:
     virtual ~WriteCallback() = default;
@@ -480,17 +497,64 @@ class AsyncTransportWrapper : virtual public AsyncTransport {
                           const AsyncSocketException& ex) noexcept = 0;
   };
 
-  // Read/write methods that aren't part of AsyncTransport
-  virtual void setReadCB(ReadCallback* callback) = 0;
-  virtual ReadCallback* getReadCallback() const = 0;
-
+  // Write methods that aren't part of AsyncTransport
   virtual void write(WriteCallback* callback, const void* buf, size_t bytes,
-                     WriteFlags flags = WriteFlags::NONE) = 0;
+                     WriteFlags flags = WriteFlags::NONE,
+                     BufferCallback* bufCallback = nullptr) = 0;
   virtual void writev(WriteCallback* callback, const iovec* vec, size_t count,
-                      WriteFlags flags = WriteFlags::NONE) = 0;
+                      WriteFlags flags = WriteFlags::NONE,
+                      BufferCallback* bufCallback = nullptr) = 0;
   virtual void writeChain(WriteCallback* callback,
                           std::unique_ptr<IOBuf>&& buf,
-                          WriteFlags flags = WriteFlags::NONE) = 0;
+                          WriteFlags flags = WriteFlags::NONE,
+                          BufferCallback* bufCallback = nullptr) = 0;
+
+ protected:
+  virtual ~AsyncWriter() = default;
+};
+
+// Transitional intermediate interface. This is deprecated.
+// Wrapper around folly::AsyncTransport, that includes read/write callbacks
+class AsyncTransportWrapper : virtual public AsyncTransport,
+                              virtual public AsyncReader,
+                              virtual public AsyncWriter {
+ public:
+  using UniquePtr = std::unique_ptr<AsyncTransportWrapper, Destructor>;
+
+  // Alias for inherited members from AsyncReader and AsyncWriter
+  // to keep compatibility.
+  using ReadCallback    = AsyncReader::ReadCallback;
+  using WriteCallback   = AsyncWriter::WriteCallback;
+  using BufferCallback  = AsyncWriter::BufferCallback;
+  virtual void setReadCB(ReadCallback* callback) override = 0;
+  virtual ReadCallback* getReadCallback() const override = 0;
+  virtual void write(WriteCallback* callback, const void* buf, size_t bytes,
+                     WriteFlags flags = WriteFlags::NONE,
+                     BufferCallback* bufCallback = nullptr) override = 0;
+  virtual void writev(WriteCallback* callback, const iovec* vec, size_t count,
+                      WriteFlags flags = WriteFlags::NONE,
+                      BufferCallback* bufCallback = nullptr) override = 0;
+  virtual void writeChain(WriteCallback* callback,
+                          std::unique_ptr<IOBuf>&& buf,
+                          WriteFlags flags = WriteFlags::NONE,
+                          BufferCallback* bufCallback = nullptr) override = 0;
+  /**
+   * The transport wrapper may wrap another transport. This returns the
+   * transport that is wrapped. It returns nullptr if there is no wrapped
+   * transport.
+   */
+  virtual AsyncTransportWrapper* getWrappedTransport() {
+    return nullptr;
+  }
+
+  /**
+   * Return the application protocol being used by the underlying transport
+   * protocol. This is useful for transports which are used to tunnel other
+   * protocols.
+   */
+  virtual std::string getApplicationProtocol() noexcept {
+    return "";
+  }
 };
 
 } // folly

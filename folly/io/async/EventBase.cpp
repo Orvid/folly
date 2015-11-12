@@ -313,7 +313,7 @@ bool EventBase::loopBody(int flags) {
 
   // time-measurement variables.
   std::chrono::steady_clock::time_point prev;
-  int64_t idleStart;
+  int64_t idleStart = 0;
   int64_t busy;
   int64_t idle;
 
@@ -460,12 +460,14 @@ bool EventBase::bumpHandlingTime() {
     " (loop) latest " << latestLoopCnt_ << " next " << nextLoopCnt_;
   if(nothingHandledYet()) {
     latestLoopCnt_ = nextLoopCnt_;
-    // set the time
-    startWork_ = std::chrono::duration_cast<std::chrono::microseconds>(
-      std::chrono::steady_clock::now().time_since_epoch()).count();
+    if (enableTimeMeasurement_) {
+      // set the time
+      startWork_ = std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
 
-    VLOG(11) << "EventBase " << this << " " << __PRETTY_FUNCTION__ <<
-      " (loop) startWork_ " << startWork_;
+      VLOG(11) << "EventBase " << this << " " << __PRETTY_FUNCTION__ <<
+        " (loop) startWork_ " << startWork_;
+    }
     return true;
   }
   return false;
@@ -794,7 +796,7 @@ void EventBase::attachTimeoutManager(AsyncTimeout* obj,
   event_base_set(getLibeventBase(), ev);
   if (internal == AsyncTimeout::InternalEnum::INTERNAL) {
     // Set the EVLIST_INTERNAL flag
-    ev->ev_flags |= EVLIST_INTERNAL;
+    event_ref_flags(ev) |= EVLIST_INTERNAL;
   }
 }
 

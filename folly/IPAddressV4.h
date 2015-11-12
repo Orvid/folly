@@ -69,6 +69,13 @@ class IPAddressV4 : boost::totally_ordered<IPAddressV4> {
   }
 
   /**
+   * Returns the address as a Range.
+   */
+  ByteRange toBinary() const {
+    return ByteRange((const unsigned char *) &addr_.inAddr_.s_addr, 4);
+  }
+
+  /**
    * Convert a IPv4 address string to a long in network byte order.
    * @param [in] ip the address to convert
    * @return the long representation of the address
@@ -97,6 +104,11 @@ class IPAddressV4 : boost::totally_ordered<IPAddressV4> {
 
   // Return the V6 mapped representation of the address.
   IPAddressV6 createIPv6() const;
+
+  /**
+   * Return a V6 address in the format of an 6To4 address.
+   */
+  IPAddressV6 getIPv6For6To4() const;
 
   // Return the long (network byte order) representation of the address.
   uint32_t toLong() const {
