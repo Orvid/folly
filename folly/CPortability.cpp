@@ -598,5 +598,23 @@ int vasprintf(char** dest, const char* format, va_list ap) {
   return -1;
 }
 
+int __builtin_clz(unsigned int x) {
+  unsigned long index = 0;
+  return (int)(_BitScanReverse(&index, (unsigned long)x) ? 31 - index : 32);
+}
+int __builtin_clzl(unsigned long x) {
+  return __builtin_clz((unsigned int)x);
+}
+int __builtin_clzll(unsigned long long x) {
+  unsigned long index = 0;
+  auto a = _BitScanReverse64(&index, x);
+  if (a) {
+    return 63 - index;
+  } else {
+    return 64;
+  }
+  //return (int)(_BitScanReverse64(&index, x) ? 62 - index : 63);
+}
+
 }
 #endif

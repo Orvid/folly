@@ -145,7 +145,7 @@ static std::mutex libevent_mutex_;
 EventBase::EventBase(bool enableTimeMeasurement)
   : runOnceCallbacks_(nullptr)
   , stop_(false)
-  , loopThread_(pthread_zero)
+  , loopThread_()
   , queue_(nullptr)
   , fnRunner_(nullptr)
   , maxLatency_(0)
@@ -183,7 +183,7 @@ EventBase::EventBase(bool enableTimeMeasurement)
 EventBase::EventBase(event_base* evb, bool enableTimeMeasurement)
   : runOnceCallbacks_(nullptr)
   , stop_(false)
-  , loopThread_(pthread_zero)
+  , loopThread_()
   , evb_(evb)
   , queue_(nullptr)
   , fnRunner_(nullptr)
@@ -431,7 +431,7 @@ bool EventBase::loopBody(int flags) {
     return false;
   }
 
-  loopThread_.store(pthread_zero, std::memory_order_release);
+  loopThread_.store({}, std::memory_order_release);
 
   VLOG(5) << "EventBase(): Done with loop.";
   return true;

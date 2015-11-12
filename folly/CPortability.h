@@ -294,15 +294,9 @@ int vasprintf(char** dest, const char* format, va_list ap);
 // to make the functions constexpr evaluatable.
 
 #ifdef __cplusplus
-inline int __builtin_clz(unsigned int x, unsigned long index = 0) {
-  return (int)(_BitScanReverse(&index, (unsigned long)x) ? 31 - index : 32);
-}
-inline int __builtin_clzl(unsigned long x) {
-  return __builtin_clz((unsigned int)x);
-}
-inline int __builtin_clzll(unsigned long long x, unsigned long index = 0) {
-  return (int)(_BitScanReverse64(&index, x) ? 63 - index : 64);
-}
+int __builtin_clz(unsigned int x);
+int __builtin_clzl(unsigned long x);
+int __builtin_clzll(unsigned long long x);
 #else
 inline int __builtin_clz(unsigned int x) {
   unsigned long index;

@@ -360,7 +360,7 @@ inline size_t malloc_usable_size(void* ptr) {
 # define FOLLY_HAS_RTTI 1
 #endif
 
-#if defined(_MSC_VER) && _MSC_FULL_VER <= 190023026 // 2015 RTM or below
+#if defined(_MSC_VER) && _MSC_FULL_VER <= 190023419 // 2015 RTM or below
 // MSVC2015's initial release produces errors if you try
 // to do `if (std::atomic<char*>)`, while `if (std::atomic<void*>)`
 // works just fine.
@@ -368,7 +368,7 @@ inline size_t malloc_usable_size(void* ptr) {
 # define MSVC_NO_NONVOID_ATOMIC_IF 1
 // 2015 RTM doesn't support in-class initialization of static constexpr members.
 // Attempting to do this produces an error informing you that this is not yet supported.
-# define MSVC_NO_STATIC_INCLASS_CONSTEXPR_INITIALIZATION 1
+//# define MSVC_NO_STATIC_INCLASS_CONSTEXPR_INITIALIZATION 1
 #endif
 
 #ifdef _MSC_VER
@@ -378,14 +378,14 @@ inline size_t malloc_usable_size(void* ptr) {
 // compared against 0.
 
 inline bool operator ==(pthread_t ptA, unsigned int b) {
-  if (ptA.p == NULL) {
+  if (ptA.p == nullptr) {
     return b == 0;
   }
   return pthread_getw32threadid_np(ptA) == b;
 }
 
 inline bool operator !=(pthread_t ptA, unsigned int b) {
-  if (ptA.p == NULL) {
+  if (ptA.p == nullptr) {
     return b != 0;
   }
   return pthread_getw32threadid_np(ptA) != b;
@@ -407,16 +407,16 @@ inline bool operator !(pthread_t ptA) {
   return ptA == 0;
 }
 
-#define pthread_zero (pthread_t{NULL, 0})
-
 inline int pthread_attr_getstack(
   pthread_attr_t* attr,
   void** stackaddr,
   size_t* stacksize) {
-  if (pthread_attr_getstackaddr(attr, stackaddr) != 0)
+  if (pthread_attr_getstackaddr(attr, stackaddr) != 0) {
     return -1;
-  if (pthread_attr_getstacksize(attr, stacksize) != 0)
+  }
+  if (pthread_attr_getstacksize(attr, stacksize) != 0) {
     return -1;
+  }
   return 0;
 }
 
@@ -424,10 +424,12 @@ inline int pthread_attr_setstack(
   pthread_attr_t* attr,
   void* stackaddr,
   size_t stacksize) {
-  if (pthread_attr_setstackaddr(attr, stackaddr) != 0)
+  if (pthread_attr_setstackaddr(attr, stackaddr) != 0) {
     return -1;
-  if (pthread_attr_setstacksize(attr, stacksize) != 0)
+  }
+  if (pthread_attr_setstacksize(attr, stacksize) != 0) {
     return -1;
+  }
   return 0;
 }
 
@@ -445,9 +447,6 @@ struct hash<pthread_t> {
   }
 };
 }
-
-#else
-#define pthread_zero ((pthread_t)0)
 #endif
 
 #ifdef _MSC_VER
