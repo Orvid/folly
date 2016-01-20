@@ -165,7 +165,7 @@
 #elif defined(__clang__) || defined(__GNUC__)
 # define FOLLY_PUSH_WARNING _Pragma("GCC diagnostic push")
 # define FOLLY_POP_WARNING _Pragma("GCC diagnostic pop")
-# define FOLLY_GCC_DISABLE_WARNING(warningName) _Pragma("GCC diagnostic ignored \"-W ## warningName\"")
+# define FOLLY_GCC_DISABLE_WARNING(warningName) _Pragma("GCC diagnostic ignored \"-W" #warningName "\"")
 // Disable the MSVC warnings.
 # define FOLLY_MSVC_DISABLE_WARNING(warningNumber)
 #else
@@ -498,9 +498,17 @@ inline void asm_pause() {
 #endif
 }
 
+#ifdef _MSC_VER
+constexpr size_t constexpr_strlen_internal(const char* s, size_t curVal) {
+  return *s == '\0' ? curVal : constexpr_strlen_internal(s + 1, curVal + 1);
+}
+#endif
+
 constexpr size_t constexpr_strlen(const char* s) {
 #if defined(__clang__)
   return __builtin_strlen(s);
+#elif defined(_MSC_VER)
+  return s == nullptr ? 0 : constexpr_strlen_internal(s, 0);
 #else
   return strlen(s);
 #endif

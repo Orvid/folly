@@ -286,10 +286,15 @@ private:
  */
 template <class Char> class fbstring_core {
 protected:
+#ifdef _MSC_VER
+  static constexpr bool kIsLittleEndian = true;
+  static constexpr bool kIsBigEndian = false;
+#else
   static constexpr bool kIsLittleEndian =
     __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__;
   static constexpr bool kIsBigEndian =
     __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__;
+#endif
   static_assert(
       kIsLittleEndian || kIsBigEndian, "unable to identify endianness");
 public:

@@ -681,16 +681,13 @@ void swap(Synchronized<T, M>& lhs, Synchronized<T, M>& rhs) {
  * examples.
  */
 #define SYNCHRONIZED(...)                                       \
-  _Pragma("GCC diagnostic push")                                \
-  _Pragma("GCC diagnostic ignored \"-Wshadow\"")                \
   if (bool SYNCHRONIZED_state = false) {} else                  \
     for (auto SYNCHRONIZED_lockedPtr =                          \
            (FB_ARG_2_OR_1(__VA_ARGS__)).operator->();           \
          !SYNCHRONIZED_state; SYNCHRONIZED_state = true)        \
       for (auto& FB_ARG_1(__VA_ARGS__) =                        \
              *SYNCHRONIZED_lockedPtr.operator->();              \
-           !SYNCHRONIZED_state; SYNCHRONIZED_state = true)      \
-  _Pragma("GCC diagnostic pop")
+           !SYNCHRONIZED_state; SYNCHRONIZED_state = true)
 
 #define TIMED_SYNCHRONIZED(timeout, ...)                           \
   if (bool SYNCHRONIZED_state = false) {} else                     \

@@ -485,7 +485,7 @@ dynamic parseNumber(Input& in) {
 
   constexpr const char* maxInt = "9223372036854775807";
   constexpr const char* minInt = "9223372036854775808";
-  constexpr auto maxIntLen = __builtin_strlen(maxInt);
+  constexpr auto maxIntLen = constexpr_strlen(maxInt);
 
   if (*in != '.' && !wasE) {
     if (LIKELY(!in.getOpts().double_fallback || integral.size() < maxIntLen) ||

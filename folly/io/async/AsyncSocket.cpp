@@ -624,6 +624,7 @@ void AsyncSocket::writev(WriteCallback* callback,
   writeImpl(callback, vec, count, unique_ptr<IOBuf>(), flags, bufCallback);
 }
 
+#define FOLLY_HAVE_VLA 0
 void AsyncSocket::writeChain(WriteCallback* callback, unique_ptr<IOBuf>&& buf,
                               WriteFlags flags, BufferCallback* bufCallback) {
   constexpr size_t kSmallSizeMax = 64;

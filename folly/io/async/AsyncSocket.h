@@ -63,6 +63,7 @@ namespace folly {
  * responding and no further progress can be made sending the data.
  */
 
+#pragma vtordisp(push, 2)
 class AsyncSocket : virtual public AsyncTransportWrapper {
  public:
   typedef std::unique_ptr<AsyncSocket, Destructor> UniquePtr;
@@ -809,6 +810,7 @@ class AsyncSocket : virtual public AsyncTransportWrapper {
   std::chrono::steady_clock::time_point connectStartTime_;
   std::chrono::steady_clock::time_point connectEndTime_;
 };
+#pragma vtordisp(pop)
 
 
 } // folly

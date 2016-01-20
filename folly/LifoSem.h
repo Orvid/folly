@@ -517,7 +517,7 @@ struct LifoSemBase {
   folly::AtomicStruct<LifoSemHead,Atom> head_;
 
   char padding_[folly::detail::CacheLocality::kFalseSharingRange -
-      sizeof(LifoSemHead)];
+    sizeof(LifoSemHead)]{};
 
 
   static LifoSemNode<Handoff, Atom>& idxToNode(uint32_t idx) {
