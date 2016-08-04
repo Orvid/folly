@@ -6,6 +6,7 @@ Makefile
 Makefile.in
 .libs
 .deps
+deps/
 stamp-h1
 folly-config.h
 _configs.sed
