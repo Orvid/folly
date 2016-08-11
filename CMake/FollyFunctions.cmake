@@ -137,12 +137,11 @@ function(folly_test testName containingPath relPath)
   set_property(TARGET ${testName} PROPERTY FOLDER "Tests/${relPath}")
   target_link_libraries(${testName}
     folly
-    ${FOLLY_DIR}/../deps/lib/gmock_mainMTd.lib
-    ${FOLLY_DIR}/../deps/lib/gflagsMTd.lib
-    ${FOLLY_DIR}/../deps/lib/event_coreMTd.lib
-    ${FOLLY_DIR}/../deps/lib/event_extraMTd.lib
-    ${FOLLY_DIR}/../deps/lib/libeay32MTd.lib
-    ${FOLLY_DIR}/../deps/lib/ssleay32MTd.lib
+    debug;${FOLLY_DIR}/../deps/lib/gmock_mainMTd.lib;optimized;${FOLLY_DIR}/../deps/lib/gmock_mainMT.lib
+    debug;${FOLLY_DIR}/../deps/lib/gflagsMTd.lib;optimized;${FOLLY_DIR}/../deps/lib/gflagsMT.lib
+    debug;${FOLLY_DIR}/../deps/lib/libeventMTd.lib;optimized;${FOLLY_DIR}/../deps/lib/libeventMT.lib
+    debug;${FOLLY_DIR}/../deps/lib/libeay32MTd.lib;optimized;${FOLLY_DIR}/../deps/lib/libeay32MT.lib
+    debug;${FOLLY_DIR}/../deps/lib/ssleay32MTd.lib;optimized;${FOLLY_DIR}/../deps/lib/ssleay32MT.lib
     Shlwapi.lib
     Ws2_32.lib
   )

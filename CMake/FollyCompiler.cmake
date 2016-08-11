@@ -29,9 +29,12 @@ list(APPEND MSVC_GENERAL_OPTIONS
   "EHa" # Enable both SEH and C++ Exceptions.
   "Oy-" # Disable elimination of stack frames.
   "Zc:inline" # Have the compiler eliminate unreferenced COMDAT functions and data before emitting the object file. This produces significantly less input to the linker, resulting in MUCH faster linking.
-  "Zc:referenceBinding"
-  "Zc:rvalueCast"
-  "Zc:implicitNoexcept"
+  "Zc:referenceBinding" # Disallow temproaries from binding to non-const lvalue references.
+  "Zc:rvalueCast" # Enforce the standard rules for explicit type conversion.
+  "Zc:implicitNoexcept" # Enable implicit noexcept specifications where required, such as destructors.
+  "Zc:strictStrings" # Don't allow conversion from a string literal to mutable characters.
+  "Zc:threadSafeInit" # Enable thread-safe function-local statics initialization.
+  "Zc:throwingNew" # Assume operator new throws on failure.
   "Zo" # Enable enhanced optimized debugging. Produces slightly larger pdb files, but the resulting optimized code is much much easier to debug.
 )
 
@@ -61,9 +64,9 @@ list(APPEND MSVC_DISABLED_WARNINGS
   "4068" # Unknown pragma.
   "4091" # 'typedef' ignored on left of '' when no variable is declared.
   "4101" # Unused variables
-  "4103" # Alignment changed after including header. This is needed because boost includes an ABI header that does some #pragma pack push/pop stuff, and we've passed our own packing
+  #"4103" # Alignment changed after including header. This is needed because boost includes an ABI header that does some #pragma pack push/pop stuff, and we've passed our own packing
   "4146" # Unary minus applied to unsigned type, result still unsigned.
-  "4250" # Function was inherited via dominance.
+  #"4250" # Function was inherited via dominance.
   "4800" # Values being forced to bool, this happens many places, and is a "performance warning".
 )
 
@@ -76,18 +79,18 @@ if (MSVC_ENABLE_ALL_WARNINGS)
     "4061" # Enum value not handled by a case in a switch on an enum. This isn't very helpful because it is produced even if a default statement is present.
     "4100" # Unreferenced formal parameter.
     "4127" # Conditional expression is constant.
-    "4131" # Old style declarator used. This is triggered by ext_bc's backend code.
-    "4189" # Local variable is initialized but not referenced.
-    "4191" # Unsafe type cast.
+    #"4131" # Old style declarator used. This is triggered by ext_bc's backend code.
+    #"4189" # Local variable is initialized but not referenced.
+    #"4191" # Unsafe type cast.
     "4200" # Non-standard extension, zero sized array.
     "4201" # Non-standard extension used: nameless struct/union.
-    "4232" # Non-standard extension used: 'pCurrent': address of dllimport.
+    #"4232" # Non-standard extension used: 'pCurrent': address of dllimport.
     "4245" # Implicit change from signed/unsigned when initializing.
     "4255" # Implicitly converting fucntion prototype from `()` to `(void)`.
-    "4265" # Class has virtual functions, but destructor is not virtual.
+    #"4265" # Class has virtual functions, but destructor is not virtual.
     "4287" # Unsigned/negative constant mismatch.
     "4296" # '<' Expression is always false.
-    "4315" # 'this' pointer for member may not be aligned to 8 bytes as expected by the constructor.
+    #"4315" # 'this' pointer for member may not be aligned to 8 bytes as expected by the constructor.
     "4324" # Structure was padded due to alignment specifier.
     "4355" # 'this' used in base member initializer list.
     "4365" # Signed/unsigned mismatch.
@@ -99,32 +102,32 @@ if (MSVC_ENABLE_ALL_WARNINGS)
     "4457" # Declaration of local hides function parameter.
     "4458" # Declaration of parameter hides class member.
     "4459" # Declaration of parameter hides global declaration.
-    "4464" # Relative include path contains "..". This is triggered by the TBB headers.
+    #"4464" # Relative include path contains "..". This is triggered by the TBB headers.
     "4505" # Unreferenced local function has been removed. This is mostly the result of things not being needed under MSVC.
     "4514" # Unreferenced inline function has been removed. (caused by /Zc:inline)
     "4548" # Expression before comma has no effect. I wouldn't disable this normally, but malloc.h triggers this warning.
-    "4555" # Expression has no effect; expected expression with side-effect. This is triggered by boost/variant.hpp.
+    #"4555" # Expression has no effect; expected expression with side-effect. This is triggered by boost/variant.hpp.
     "4574" # ifdef'd macro was defined to 0.
     "4582" # Constructor is not implicitly called.
     "4583" # Destructor is not implicitly called.
-    "4608" # Member has already been initialized by another union member initializer.
+    #"4608" # Member has already been initialized by another union member initializer.
     "4619" # Invalid warning number used in #pragma warning.
     "4623" # Default constructor was implicitly defined as deleted.
     "4625" # Copy constructor was implicitly defined as deleted.
     "4626" # Assignment operator was implicitly defined as deleted.
-    "4647" # __is_pod() has a different value in pervious versions of MSVC.
+    #"4647" # __is_pod() has a different value in pervious versions of MSVC.
     "4668" # Macro was not defined, replacing with 0.
     "4701" # Potentially uninitialized local variable used.
     "4702" # Unreachable code.
     "4706" # Assignment within conditional expression.
-    "4709" # Comma operator within array index expression. This currently just produces false-positives.
+    #"4709" # Comma operator within array index expression. This currently just produces false-positives.
     "4710" # Function was not inlined.
     "4711" # Function was selected for automated inlining. This produces tens of thousands of warnings in release mode if you leave it enabled, which will completely break Visual Studio, so don't enable it.
     "4714" # Function marked as __forceinline not inlined.
-    "4774" # Format string expected in argument is not a string literal.
+    #"4774" # Format string expected in argument is not a string literal.
     "4820" # Padding added after data member.
-    "4917" # A GUID can only be associated with a class. This is triggered by some standard windows headers.
-    "4946" # reinterpret_cast used between related types.
+    #"4917" # A GUID can only be associated with a class. This is triggered by some standard windows headers.
+    #"4946" # reinterpret_cast used between related types.
     "5026" # Move constructor was implicitly defined as deleted.
     "5027" # Move assignment operator was implicitly defined as deleted.
     "5031" # #pragma warning(pop): likely mismatch, popping warning state pushed in different file. This is needed because of how boost does things.
@@ -162,17 +165,17 @@ endif()
 # Warnings disabled to keep it quiet for now,
 # most of these should be reviewed and re-enabled:
 list(APPEND MSVC_DISABLED_WARNINGS
-  "4005" # Macro redefinition
+  #"4005" # Macro redefinition
   "4018" # Signed/unsigned mismatch.
   "4242" # Possible loss of data when returning a value.
   "4244" # Implicit truncation of data.
   "4267" # Implicit truncation of data. This really shouldn't be disabled.
-  "4291" # No matching destructor found.
-  "4302" # Pointer casting size difference
-  "4311" # Pointer casting size difference
-  "4312" # Pointer casting size difference
-  "4477" # Parameter to a formatting function isn't the same type as was passed in the format string.
-  "4624" # Destructor was implicitly undefined.
+  #"4291" # No matching destructor found.
+  #"4302" # Pointer casting size difference
+  #"4311" # Pointer casting size difference
+  #"4312" # Pointer casting size difference
+  #"4477" # Parameter to a formatting function isn't the same type as was passed in the format string.
+  #"4624" # Destructor was implicitly undefined.
   "4804" # Unsafe use of type 'bool' in operation. (comparing if bool is <=> scalar)
   "4805" # Unsafe mix of scalar type and type 'bool' in operation. (comparing if bool is == scalar)
 )
