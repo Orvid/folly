@@ -260,7 +260,6 @@ folly_test(group_varint_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/GroupVar
 folly_test(group_varint_test_ssse3 "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/GroupVarintTest.cpp)
 folly_test(map_util_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/MapUtilTest.cpp)
 folly_test(uri_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/UriTest.cpp)
-folly_test(conditionally_existent_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/ConditionallyExistentTest.cpp)
 folly_test(producer_consumer_queue_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/ProducerConsumerQueueTest.cpp)
 folly_test(atomic_hash_array_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/AtomicHashArrayTest.cpp)
 folly_test(atomic_hash_map_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/AtomicHashMapTest.cpp)
