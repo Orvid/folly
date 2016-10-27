@@ -45,7 +45,7 @@ endfunction(auto_sources)
 # This will remove all files in the CPP_SOURCES list
 # matching "/test/" or "Test.cpp$", but not matching
 # "BobTest.cpp$".
-# HHVM_REMOVE_MATCHES_FROM_LISTS(CPP_SOURCES MATCHES "/test/" "Test.cpp$" IGNORE_MATCHES "BobTest.cpp$")
+# REMOVE_MATCHES_FROM_LISTS(CPP_SOURCES MATCHES "/test/" "Test.cpp$" IGNORE_MATCHES "BobTest.cpp$")
 #
 # Parameters:
 #
@@ -58,7 +58,7 @@ endfunction(auto_sources)
 # [IGNORE_MATCHES ...]:
 # The matches not to remove, even if they match
 # the main set of matches to remove.
-function(HHVM_REMOVE_MATCHES_FROM_LISTS)
+function(REMOVE_MATCHES_FROM_LISTS)
   set(LISTS_TO_SEARCH)
   set(MATCHES_TO_REMOVE)
   set(MATCHES_TO_IGNORE)
@@ -126,7 +126,7 @@ function(auto_source_group rootName rootDir)
       list(FIND sourceGroups "${fileGroup}" rIdx)
       if (rIdx EQUAL -1)
         list(APPEND sourceGroups "${fileGroup}")
-        source_group("${fileGroup}" REGULAR_EXPRESSION "${filePath}/[^/.]+(.(tab|yy))?.(c|cc|cpp|h|hpp|ll|php|tcc|y)$")
+        source_group("${fileGroup}" REGULAR_EXPRESSION "${filePath}/[^/.]+.(cpp|h)$")
       endif()
     endif()
   endforeach()
@@ -139,12 +139,5 @@ function(folly_test testName containingPath relPath)
     folly
     debug;${FOLLY_DIR}/../deps/lib/gmock_mainMTd.lib;optimized;${FOLLY_DIR}/../deps/lib/gmock_mainMT.lib
     debug;${FOLLY_DIR}/../deps/lib/gflagsMTd.lib;optimized;${FOLLY_DIR}/../deps/lib/gflagsMT.lib
-    debug;${FOLLY_DIR}/../deps/lib/libeventMTd.lib;optimized;${FOLLY_DIR}/../deps/lib/libeventMT.lib
-    debug;${FOLLY_DIR}/../deps/lib/libeay32MTd.lib;optimized;${FOLLY_DIR}/../deps/lib/libeay32MT.lib
-    debug;${FOLLY_DIR}/../deps/lib/ssleay32MTd.lib;optimized;${FOLLY_DIR}/../deps/lib/ssleay32MT.lib
-    Shlwapi.lib
-    Ws2_32.lib
   )
-  add_test(NAME ${testName} COMMAND ${testName})
-  set_property(TEST ${testName} PROPERTY TIMEOUT 10)
 endfunction()

@@ -6,36 +6,35 @@ set(MSVC_GENERAL_OPTIONS)
 set(MSVC_DISABLED_WARNINGS)
 set(MSVC_WARNINGS_AS_ERRORS)
 set(MSVC_ADDITIONAL_DEFINES)
-set(MSVC_EXE_LINKER_OPTIONS)
 set(MSVC_DEBUG_OPTIONS)
 set(MSVC_RELEASE_OPTIONS)
+set(MSVC_DEBUG_LINKER_OPTIONS)
 set(MSVC_RELEASE_LINKER_OPTIONS)
-set(MSVC_DEBUG_EXE_LINKER_OPTIONS)
-set(MSVC_RELEASE_EXE_LINKER_OPTIONS)
 
 # Some addional configuration options.
-set(MSVC_ENABLE_ALL_WARNINGS ON CACHE BOOL "If enabled, pass /Wall to the compiler.")
-set(MSVC_ENABLE_DEBUG_INLINING ON CACHE BOOL "If enabled, enable inlining in the debug configuration. This allows /Zc:inline to be far more effective, resulting in hphp_runtime_static being ~450mb smaller.")
-set(MSVC_ENABLE_LTCG OFF CACHE BOOL "If enabled, use Link Time Code Generation for Release builds.")
-set(MSVC_ENABLE_PARALLEL_BUILD ON CACHE BOOL "If enabled, build multiple source files in parallel.")
-set(MSVC_ENABLE_STATIC_ANALYSIS OFF CACHE BOOL "If enabled, do more complex static analysis and generate warnings appropriately.")
+option(MSVC_ENABLE_ALL_WARNINGS "If enabled, pass /Wall to the compiler." ON)
+option(MSVC_ENABLE_DEBUG_INLINING "If enabled, enable inlining in the debug configuration. This allows /Zc:inline to be far more effective." OFF)
+option(MSVC_ENABLE_LTCG "If enabled, use Link Time Code Generation for Release builds." OFF)
+option(MSVC_ENABLE_PARALLEL_BUILD "If enabled, build multiple source files in parallel." ON)
+option(MSVC_ENABLE_STATIC_ANALYSIS "If enabled, do more complex static analysis and generate warnings appropriately." OFF)
+option(MSVC_USE_STATIC_RUNTIME "If enabled, build against the static, rather than the dynamic, runtime." OFF)
+
+# Alas, option() doesn't support string values.
 set(MSVC_FAVORED_ARCHITECTURE "blend" CACHE STRING "One of 'blend', 'AMD64', 'INTEL64', or 'ATOM'. This tells the compiler to generate code optimized to run best on the specified architecture.")
 
 # The general options passed:
 list(APPEND MSVC_GENERAL_OPTIONS
   "std:c++latest" # Build in C++17 mode
-  "bigobj" # Support objects with > 65k sections. Needed for due to templates.
-  "fp:precise" # Precise floating point model used in every other build, use it here as well.
+  "bigobj" # Support objects with > 65k sections. Needed due to templates.
   "EHa" # Enable both SEH and C++ Exceptions.
   "Oy-" # Disable elimination of stack frames.
-  "Zc:inline" # Have the compiler eliminate unreferenced COMDAT functions and data before emitting the object file. This produces significantly less input to the linker, resulting in MUCH faster linking.
+  "Zc:inline" # Have the compiler eliminate unreferenced COMDAT functions and data before emitting the object file.
   "Zc:referenceBinding" # Disallow temproaries from binding to non-const lvalue references.
   "Zc:rvalueCast" # Enforce the standard rules for explicit type conversion.
   "Zc:implicitNoexcept" # Enable implicit noexcept specifications where required, such as destructors.
   "Zc:strictStrings" # Don't allow conversion from a string literal to mutable characters.
   "Zc:threadSafeInit" # Enable thread-safe function-local statics initialization.
   "Zc:throwingNew" # Assume operator new throws on failure.
-  "Zo" # Enable enhanced optimized debugging. Produces slightly larger pdb files, but the resulting optimized code is much much easier to debug.
 )
 
 # Enable all warnings if requested.
@@ -64,9 +63,7 @@ list(APPEND MSVC_DISABLED_WARNINGS
   "4068" # Unknown pragma.
   "4091" # 'typedef' ignored on left of '' when no variable is declared.
   "4101" # Unused variables
-  #"4103" # Alignment changed after including header. This is needed because boost includes an ABI header that does some #pragma pack push/pop stuff, and we've passed our own packing
   "4146" # Unary minus applied to unsigned type, result still unsigned.
-  #"4250" # Function was inherited via dominance.
   "4800" # Values being forced to bool, this happens many places, and is a "performance warning".
 )
 
@@ -79,18 +76,12 @@ if (MSVC_ENABLE_ALL_WARNINGS)
     "4061" # Enum value not handled by a case in a switch on an enum. This isn't very helpful because it is produced even if a default statement is present.
     "4100" # Unreferenced formal parameter.
     "4127" # Conditional expression is constant.
-    #"4131" # Old style declarator used. This is triggered by ext_bc's backend code.
-    #"4189" # Local variable is initialized but not referenced.
-    #"4191" # Unsafe type cast.
     "4200" # Non-standard extension, zero sized array.
     "4201" # Non-standard extension used: nameless struct/union.
-    #"4232" # Non-standard extension used: 'pCurrent': address of dllimport.
     "4245" # Implicit change from signed/unsigned when initializing.
     "4255" # Implicitly converting fucntion prototype from `()` to `(void)`.
-    #"4265" # Class has virtual functions, but destructor is not virtual.
     "4287" # Unsigned/negative constant mismatch.
     "4296" # '<' Expression is always false.
-    #"4315" # 'this' pointer for member may not be aligned to 8 bytes as expected by the constructor.
     "4324" # Structure was padded due to alignment specifier.
     "4355" # 'this' used in base member initializer list.
     "4365" # Signed/unsigned mismatch.
@@ -102,32 +93,24 @@ if (MSVC_ENABLE_ALL_WARNINGS)
     "4457" # Declaration of local hides function parameter.
     "4458" # Declaration of parameter hides class member.
     "4459" # Declaration of parameter hides global declaration.
-    #"4464" # Relative include path contains "..". This is triggered by the TBB headers.
     "4505" # Unreferenced local function has been removed. This is mostly the result of things not being needed under MSVC.
     "4514" # Unreferenced inline function has been removed. (caused by /Zc:inline)
     "4548" # Expression before comma has no effect. I wouldn't disable this normally, but malloc.h triggers this warning.
-    #"4555" # Expression has no effect; expected expression with side-effect. This is triggered by boost/variant.hpp.
     "4574" # ifdef'd macro was defined to 0.
     "4582" # Constructor is not implicitly called.
     "4583" # Destructor is not implicitly called.
-    #"4608" # Member has already been initialized by another union member initializer.
     "4619" # Invalid warning number used in #pragma warning.
     "4623" # Default constructor was implicitly defined as deleted.
     "4625" # Copy constructor was implicitly defined as deleted.
     "4626" # Assignment operator was implicitly defined as deleted.
-    #"4647" # __is_pod() has a different value in pervious versions of MSVC.
     "4668" # Macro was not defined, replacing with 0.
     "4701" # Potentially uninitialized local variable used.
     "4702" # Unreachable code.
     "4706" # Assignment within conditional expression.
-    #"4709" # Comma operator within array index expression. This currently just produces false-positives.
     "4710" # Function was not inlined.
     "4711" # Function was selected for automated inlining. This produces tens of thousands of warnings in release mode if you leave it enabled, which will completely break Visual Studio, so don't enable it.
     "4714" # Function marked as __forceinline not inlined.
-    #"4774" # Format string expected in argument is not a string literal.
     "4820" # Padding added after data member.
-    #"4917" # A GUID can only be associated with a class. This is triggered by some standard windows headers.
-    #"4946" # reinterpret_cast used between related types.
     "5026" # Move constructor was implicitly defined as deleted.
     "5027" # Move assignment operator was implicitly defined as deleted.
     "5031" # #pragma warning(pop): likely mismatch, popping warning state pushed in different file. This is needed because of how boost does things.
@@ -165,46 +148,30 @@ endif()
 # Warnings disabled to keep it quiet for now,
 # most of these should be reviewed and re-enabled:
 list(APPEND MSVC_DISABLED_WARNINGS
-  #"4005" # Macro redefinition
   "4018" # Signed/unsigned mismatch.
   "4242" # Possible loss of data when returning a value.
   "4244" # Implicit truncation of data.
   "4267" # Implicit truncation of data. This really shouldn't be disabled.
-  #"4291" # No matching destructor found.
-  #"4302" # Pointer casting size difference
-  #"4311" # Pointer casting size difference
-  #"4312" # Pointer casting size difference
-  #"4477" # Parameter to a formatting function isn't the same type as was passed in the format string.
-  #"4624" # Destructor was implicitly undefined.
   "4804" # Unsafe use of type 'bool' in operation. (comparing if bool is <=> scalar)
   "4805" # Unsafe mix of scalar type and type 'bool' in operation. (comparing if bool is == scalar)
 )
 
 # Warnings to treat as errors:
 list(APPEND MSVC_WARNINGS_AS_ERRORS
-  "4099" # Mixed use of struct and class on same type names. This was absolutely everywhere, and can cause errors at link-time if not fixed.
+  "4099" # Mixed use of struct and class on same type names.
   "4129" # Unknown escape sequence. This is usually caused by incorrect escaping.
   "4566" # Character cannot be represented in current charset. This is remidied by prefixing string with "u8".
 )
 
 # And the extra defines:
 list(APPEND MSVC_ADDITIONAL_DEFINES
+  "_HAS_AUTO_PTR_ETC=1" # We're building in C++ 17 mode, but certain dependencies (Boost) still have dependencies on unary_function and binary_function, so we have to make sure not to remove them.
   "NOMINMAX" # This is needed because, for some absurd reason, one of the windows headers tries to define "min" and "max" as macros, which messes up most uses of std::numeric_limits.
   "_CRT_NONSTDC_NO_WARNINGS" # Don't deprecate posix names of functions.
   "_CRT_SECURE_NO_WARNINGS" # Don't deprecate the non _s versions of various standard library functions, because safety is for chumps.
   "_SCL_SECURE_NO_WARNINGS" # Don't deprecate the non _s versions of various standard library functions, because safety is for chumps.
   "_WINSOCK_DEPRECATED_NO_WARNINGS" # Don't deprecate pieces of winsock
   "WIN32_LEAN_AND_MEAN" # Don't include most of Windows.h
-)
-
-# The options passed to the linker for EXE targets:
-list(APPEND MSVC_EXE_LINKER_OPTIONS
-  "BASE:0x10000" # Base the program at just over 64k in memory, to play nice with the JIT.
-  "DYNAMICBASE:NO" # Don't randomize the base address.
-  "FIXED" # The program can only be loaded at its preferred base address.
-  "STACK:8388608,8388608" # Set the stack reserve,commit to 8mb. Reserve should probably be higher.
-  "time" # Output some timing information about the link.
-  "ignore:4099" # Don't complain about missing pdbs.
 )
 
 # The options to pass to the compiler for debug builds:
@@ -223,7 +190,7 @@ list(APPEND MSVC_RELEASE_OPTIONS
   "GF" # Enable string pooling. (this is enabled by default by the optimization level, but we enable it here for clarity)
   "Gw" # Optimize global data. (-fdata-sections)
   "Gy" # Enable function level linking. (-ffunction-sections)
-  "Qpar" # Enable parallel code generation. HHVM itself doesn't currently use this, but it's dependencies, TBB for instance, might, so enable it.
+  "Qpar" # Enable parallel code generation.
   "Oi" # Enable intrinsic functions.
   "Ot" # Favor fast code.
 )
@@ -235,32 +202,37 @@ if (MSVC_ENABLE_LTCG)
   list(APPEND MSVC_RELEASE_LINKER_OPTIONS "LTCG")
 endif()
 
-# The options to pass to the linker for debug builds for EXE targets:
-list(APPEND MSVC_DEBUG_EXE_LINKER_OPTIONS
+# The options to pass to the linker for debug builds:
+list(APPEND MSVC_DEBUG_LINKER_OPTIONS
+  "DEBUG:FASTLINK" # Generate a partial PDB file that simply references the original object and library files.
+  "INCREMENTAL" # Do incremental linking.
   "OPT:NOREF" # No unreferenced data elimination. (well, mostly)
   "OPT:NOICF" # No Identical COMDAT folding.
 )
 
-# The options to pass to the linker for release builds for EXE targets:
-list(APPEND MSVC_RELEASE_EXE_LINKER_OPTIONS
+# The options to pass to the linker for release builds:
+list(APPEND MSVC_RELEASE_LINKER_OPTIONS
   "OPT:REF" # Remove unreferenced functions and data.
   "OPT:ICF" # Identical COMDAT folding.
 )
 
+# If the static runtime is requested, we have to
+# overwrite some of CMake's defaults.
+if (MSVC_USE_STATIC_RUNTIME)
+  foreach(flag_var
+      CMAKE_C_FLAGS CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE
+      CMAKE_C_FLAGS_MINSIZEREL CMAKE_C_FLAGS_RELWITHDEBINFO
+      CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
+      CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+    if (${flag_var} MATCHES "/MD")
+      string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
+    endif()
+  endforeach()
+endif()
+
 ############################################################
 # Now we need to adjust a couple of the default option sets.
 ############################################################
-
-# We need the static runtime.
-foreach(flag_var
-    CMAKE_C_FLAGS CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE
-    CMAKE_C_FLAGS_MINSIZEREL CMAKE_C_FLAGS_RELWITHDEBINFO
-    CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
-    CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-  if (${flag_var} MATCHES "/MD")
-    string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
-  endif()
-endforeach()
 
 # In order for /Zc:inline, which speeds up the build significantly, to work
 # we need to remove the /Ob0 parameter that CMake adds by default, because that
@@ -299,8 +271,10 @@ foreach(opt ${MSVC_ADDITIONAL_DEFINES})
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D ${opt}")
 endforeach()
 
-foreach(opt ${MSVC_EXE_LINKER_OPTIONS})
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /${opt}")
+foreach(opt ${MSVC_DEBUG_LINKER_OPTIONS})
+  foreach(flag_var CMAKE_EXE_LINKER_FLAGS_DEBUG CMAKE_SHARED_LINKER_FLAGS_DEBUG CMAKE_STATIC_LINKER_FLAGS_DEBUG)
+    set(${flag_var} "${${flag_var}} /${opt}")
+  endforeach()
 endforeach()
 
 foreach(opt ${MSVC_RELEASE_LINKER_OPTIONS})
@@ -323,14 +297,4 @@ foreach(opt ${MSVC_RELEASE_OPTIONS})
       CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
     set(${flag_var} "${${flag_var}} /${opt}")
   endforeach()
-endforeach()
-
-foreach(opt ${MSVC_DEBUG_EXE_LINKER_OPTIONS})
-  set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /${opt}")
-endforeach()
-
-foreach(opt ${MSVC_RELEASE_EXE_LINKER_OPTIONS})
-  set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /${opt}")
-  set(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL "${CMAKE_EXE_LINKER_FLAGS_MINSIZEREL} /${opt}")
-  set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} /${opt}")
 endforeach()
