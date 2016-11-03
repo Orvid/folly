@@ -138,6 +138,5 @@ function(folly_test testName containingPath relPath)
   target_link_libraries(${testName}
     folly
     debug;${FOLLY_DIR}/../deps/lib/gmock_mainMTd.lib;optimized;${FOLLY_DIR}/../deps/lib/gmock_mainMT.lib
-    debug;${FOLLY_DIR}/../deps/lib/gflagsMTd.lib;optimized;${FOLLY_DIR}/../deps/lib/gflagsMT.lib
   )
 endfunction()

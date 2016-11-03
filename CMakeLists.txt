@@ -23,15 +23,20 @@ if(NOT "${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
   message(FATAL_ERROR "You should only be using CMake to build Folly on Windows!")
 endif()
 
+find_package(Boost 1.55.0 COMPONENTS chrono date_time system program_options filesystem regex context REQUIRED)
+link_directories(${Boost_LIBRARY_DIRS})
+
+find_package(double-conversion REQUIRED)
+find_package(gflags REQUIRED)
+find_package(Glog REQUIRED)
+find_package(LibEvent REQUIRED)
+find_package(OpenSSL REQUIRED)
+find_package(PThread REQUIRED)
+
 set(FOLLY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/folly")
 
 include(FollyFunctions)
 include(FollyCompiler)
-
-add_definitions(
-  -DGTEST_ENV_HAS_STD_TUPLE_=1
-  -DGTEST_LANG_CXX11=1
-)
 
 # Main folly library files
 auto_sources(files "*.cpp" "RECURSE" "${FOLLY_DIR}")
@@ -40,6 +45,7 @@ auto_sources(hfiles "*.h" "RECURSE" "${FOLLY_DIR}")
 # No need for tests or benchmarks, and we can't build most experimental stuff.
 REMOVE_MATCHES_FROM_LISTS(files hfiles MATCHES
   "/experimental/exception_tracer/"
+  "/experimental/hazptr/example/"
   "/experimental/symbolizer/"
   "/futures/exercises/"
   "/gen/"
@@ -55,25 +61,30 @@ list(REMOVE_ITEM files
   ${FOLLY_DIR}/build/GenerateFingerprintTables.cpp
   ${FOLLY_DIR}/experimental/DynamicParser.cpp
   ${FOLLY_DIR}/experimental/JSONSchemaTester.cpp
-  ${FOLLY_DIR}/experimental/RCUUtils.cpp
+  ${FOLLY_DIR}/experimental/NestedCommandLineApp.cpp
   ${FOLLY_DIR}/experimental/ProgramOptions.cpp
+  ${FOLLY_DIR}/experimental/RCUUtils.cpp
   ${FOLLY_DIR}/experimental/io/AsyncIO.cpp
   ${FOLLY_DIR}/experimental/io/HugePageUtil.cpp
   ${FOLLY_DIR}/init/Init.cpp
   ${FOLLY_DIR}/io/Compression.cpp
+  ${FOLLY_DIR}/futures/test/Benchmark.cpp
 )
 list(REMOVE_ITEM hfiles
   ${FOLLY_DIR}/Subprocess.h
   ${FOLLY_DIR}/experimental/DynamicParser.h
   ${FOLLY_DIR}/experimental/DynamicParser-inl.h
-  ${FOLLY_DIR}/experimental/RCUUtils.h
+  ${FOLLY_DIR}/experimental/NestedCommandLineApp.h
   ${FOLLY_DIR}/experimental/ProgramOptions.h
+  ${FOLLY_DIR}/experimental/RCURefCount.h
+  ${FOLLY_DIR}/experimental/RCUUtils.h
+  ${FOLLY_DIR}/experimental/TLRefCount.h
   ${FOLLY_DIR}/experimental/io/AsyncIO.h
   ${FOLLY_DIR}/init/Init.h
   ${FOLLY_DIR}/io/Compression.h
 )
 
-add_library(folly ${files} ${hfiles})
+add_library(folly SHARED ${files} ${hfiles})
 auto_source_group(folly ${FOLLY_DIR} ${files} ${hfiles})
 
 target_compile_definitions(folly
@@ -92,40 +103,33 @@ target_compile_definitions(folly
     FOLLY_HAVE_UNALIGNED_ACCESS=1
     FOLLY_HAVE_STD__IS_TRIVIALLY_COPYABLE=1
   PRIVATE
-    GLOG_NO_ABBREVIATED_SEVERITIES
     "FOLLY_VERSION=\"${PACKAGE_VERSION}\""
 )
 
-find_package(Boost 1.55.0 COMPONENTS chrono date_time system program_options filesystem regex context REQUIRED)
-include_directories(${Boost_INCLUDE_DIRS})
-link_directories(${Boost_LIBRARY_DIRS})
-
-find_package(double-conversion REQUIRED)
-include_directories(${double-conversion_INCLUDE_DIRS})
-
-find_package(Glog REQUIRED)
-include_directories(${LIBGLOG_INCLUDE_DIR})
-
-find_package(LibEvent REQUIRED)
-include_directories(${LIBEVENT_INCLUDE_DIR})
-
-find_package(OpenSSL REQUIRED)
-include_directories(${OPENSSL_INCLUDE_DIR})
-
-find_package(PThread REQUIRED)
-include_directories(${LIBPTHREAD_INCLUDE_DIRS})
+target_include_directories(folly
+  PUBLIC
+    ${Boost_INCLUDE_DIRS}
+    ${OPENSSL_INCLUDE_DIR}
+)
 
 target_link_libraries(folly
   PUBLIC
+    #boost::chrono
+    #boost::date_time
+    #boost::system
+    #boost::program_options
+    #boost::filesystem
+    #boost::regex
+    #boost::context
     ${Boost_LIBRARIES}
-    ${double-conversion_LIBRARIES}
-    ${LIBGLOG_LIBRARY}
-    ${LIBEVENT_LIB}
-    ${LIBPTHREAD_LIBRARIES}
+    double-conversion
+    event
+    glog::glog
+    pthread
     ${OPENSSL_LIBRARIES}
     Ws2_32.lib
   PRIVATE
-    Shlwapi.lib
+    gflags
 )
 
 install(TARGETS folly
@@ -134,10 +138,15 @@ install(TARGETS folly
   LIBRARY DESTINATION bin
   ARCHIVE DESTINATION lib)
 install(FILES ${hfiles} DESTINATION include)
-install(EXPORT folly DESTINATION share/folly FILE libfolly.cmake)
+install(EXPORT folly DESTINATION share/folly FILE folly-config.cmake)
 
 option(BUILD_TESTS "If enabled, compile the tests." OFF)
 if (BUILD_TESTS)
+  add_definitions(
+    -DGTEST_ENV_HAS_STD_TUPLE_=1
+    -DGTEST_LANG_CXX11=1
+  )
+
   folly_test(constexpr_test "${FOLLY_DIR}/portability/" "portability/"  ${FOLLY_DIR}/portability/test/ConstexprTest.cpp)
   folly_test(libgen-test "${FOLLY_DIR}/portability/" "portability/"  ${FOLLY_DIR}/portability/test/LibgenTest.cpp)
   folly_test(time-test "${FOLLY_DIR}/portability/" "portability/"  ${FOLLY_DIR}/portability/test/TimeTest.cpp)

@@ -79,7 +79,7 @@ if (MSVC_ENABLE_ALL_WARNINGS)
     "4200" # Non-standard extension, zero sized array.
     "4201" # Non-standard extension used: nameless struct/union.
     "4245" # Implicit change from signed/unsigned when initializing.
-    "4255" # Implicitly converting fucntion prototype from `()` to `(void)`.
+    "4255" # Implicitly converting function prototype from `()` to `(void)`.
     "4287" # Unsigned/negative constant mismatch.
     "4296" # '<' Expression is always false.
     "4324" # Structure was padded due to alignment specifier.
