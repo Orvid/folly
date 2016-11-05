@@ -35,8 +35,8 @@ find_package(PThread REQUIRED)
 
 set(FOLLY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/folly")
 
-include(FollyFunctions)
 include(FollyCompiler)
+include(FollyFunctions)
 
 # Main folly library files
 auto_sources(files "*.cpp" "RECURSE" "${FOLLY_DIR}")
@@ -86,6 +86,7 @@ list(REMOVE_ITEM hfiles
 
 add_library(folly SHARED ${files} ${hfiles})
 auto_source_group(folly ${FOLLY_DIR} ${files} ${hfiles})
+apply_folly_compile_options_to_target(folly)
 
 target_compile_definitions(folly
   PUBLIC
@@ -114,22 +115,14 @@ target_include_directories(folly
 
 target_link_libraries(folly
   PUBLIC
-    #boost::chrono
-    #boost::date_time
-    #boost::system
-    #boost::program_options
-    #boost::filesystem
-    #boost::regex
-    #boost::context
     ${Boost_LIBRARIES}
     double-conversion
     event
+    gflags
     glog::glog
     pthread
     ${OPENSSL_LIBRARIES}
     Ws2_32.lib
-  PRIVATE
-    gflags
 )
 
 install(TARGETS folly
