@@ -47,7 +47,6 @@ function(apply_folly_compile_options_to_target THETARGET)
     PUBLIC
       /std:c++latest # Build in C++17 mode
       /EHa # Enable both SEH and C++ Exceptions.
-      /Oy- # Disable elimination of stack frames.
       /Zc:referenceBinding # Disallow temporaries from binding to non-const lvalue references.
       /Zc:rvalueCast # Enforce the standard rules for explicit type conversion.
       /Zc:implicitNoexcept # Enable implicit noexcept specifications where required, such as destructors.
@@ -198,7 +197,7 @@ function(apply_folly_compile_options_to_target THETARGET)
   set_property(TARGET ${THETARGET} APPEND_STRING PROPERTY STATIC_LIBRARY_FLAGS " /ignore:4221")
 
   # The options to pass to the linker:
-  set_property(TARGET ${THETARGET} APPEND_STRING PROPERTY LINK_FLAGS_DEBUG " /DEBUG:FASTLINK") # Generate a partial PDB file that simply references the original object and library files.
+  #set_property(TARGET ${THETARGET} APPEND_STRING PROPERTY LINK_FLAGS_DEBUG " /DEBUG:FASTLINK") # Generate a partial PDB file that simply references the original object and library files.
   set_property(TARGET ${THETARGET} APPEND_STRING PROPERTY LINK_FLAGS_DEBUG " /INCREMENTAL") # Do incremental linking.
   if (NOT $<TARGET_PROPERTY:${THETARGET},TYPE> STREQUAL "STATIC_LIBRARY")
     set_property(TARGET ${THETARGET} APPEND_STRING PROPERTY LINK_FLAGS_DEBUG " /OPT:NOREF") # No unreferenced data elimination.

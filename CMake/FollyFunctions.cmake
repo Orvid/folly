@@ -21,18 +21,14 @@ function(auto_sources RETURN_VALUE PATTERN SOURCE_SUBDIRS)
         endif()
       endif()
     endforeach()
-  else ()
+  else()
     file(GLOB ${RETURN_VALUE} "${PATTERN}")
 
     foreach (PATH ${SOURCE_SUBDIRS})
       file(GLOB SUBDIR_FILES "${PATH}/${PATTERN}")
       list(APPEND ${RETURN_VALUE} ${SUBDIR_FILES})
-    endforeach(PATH ${SOURCE_SUBDIRS})
+    endforeach()
   endif ()
-
-  if (${FILTER_OUT})
-    list(REMOVE_ITEM ${RETURN_VALUE} ${FILTER_OUT})
-  endif()
 
   set(${RETURN_VALUE} ${${RETURN_VALUE}} PARENT_SCOPE)
 endfunction(auto_sources)
@@ -136,7 +132,10 @@ function(folly_test testName containingPath relPath)
   add_executable(${testName} ${ARGN})
   set_property(TARGET ${testName} PROPERTY FOLDER "Tests/${relPath}")
   target_link_libraries(${testName}
-    folly
-    debug;${FOLLY_DIR}/../deps/lib/gmock_mainMTd.lib;optimized;${FOLLY_DIR}/../deps/lib/gmock_mainMT.lib
+    PRIVATE
+      folly
+      folly_test_support
+      gmock
   )
+  apply_folly_compile_options_to_target(${testName})
 endfunction()
