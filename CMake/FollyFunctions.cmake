@@ -131,11 +131,6 @@ endfunction()
 function(folly_test testName containingPath relPath)
   add_executable(${testName} ${ARGN})
   set_property(TARGET ${testName} PROPERTY FOLDER "Tests/${relPath}")
-  target_link_libraries(${testName}
-    PRIVATE
-      folly
-      folly_test_support
-      gmock
-  )
+  target_link_libraries(${testName} PRIVATE folly_test_support)
   apply_folly_compile_options_to_target(${testName})
 endfunction()

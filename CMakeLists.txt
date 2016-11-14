@@ -1,4 +1,11 @@
-cmake_minimum_required(VERSION 3.0.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.4.0 FATAL_ERROR)
+
+# Unfortunately, CMake doesn't easily provide us a way to merge static
+# libraries, which is what we want to do to generate the main folly library, so
+# we do a bit of a workaround here to inject a property into the generated
+# project files that will only get enabled for the folly target. Ugly, but
+# the alternatives are far, far worse.
+set(CMAKE_GENERATOR_TOOLSET "v140</PlatformToolset></PropertyGroup><ItemDefinitionGroup Condition=\"'$(ProjectName)'=='folly'\"><ProjectReference><LinkLibraryDependencies>true</LinkLibraryDependencies></ProjectReference></ItemDefinitionGroup><PropertyGroup><PlatformToolset>v140")
 
 # includes
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
@@ -11,6 +18,7 @@ set(PACKAGE_STRING    "${PACKAGE_NAME} ${PACKAGE_VERSION}")
 set(PACKAGE_TARNAME   "${PACKAGE_NAME}-${PACKAGE_VERSION}")
 set(PACKAGE_BUGREPORT "https://github.com/facebook/folly/issues")
 
+# 100+ tests in the root folder anyone? No? I didn't think so.
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 project(${PACKAGE_NAME} CXX)
@@ -20,20 +28,35 @@ if (NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
   message(FATAL_ERROR "Folly requires a 64bit OS")
 endif()
 if(NOT "${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
-  message(FATAL_ERROR "You should only be using CMake to build Folly on Windows!")
+  message(FATAL_ERROR "You should only be using CMake to build Folly if you are on Windows!")
 endif()
 
-find_package(Boost 1.55.0 COMPONENTS chrono date_time system program_options filesystem regex context REQUIRED)
-link_directories(${Boost_LIBRARY_DIRS})
-
-find_package(double-conversion REQUIRED)
-find_package(gflags REQUIRED)
-find_package(Glog REQUIRED)
-find_package(LibEvent REQUIRED)
-find_package(OpenSSL REQUIRED)
-find_package(PThread REQUIRED)
-
 set(FOLLY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/folly")
+
+# Generate a few tables and create the main config file.
+find_package(PythonInterp REQUIRED)
+add_custom_command(
+  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/folly/build/EscapeTables.cpp"
+  COMMAND ${PYTHON_EXECUTABLE} "${FOLLY_DIR}/build/generate_escape_tables.py"
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/folly/build/
+  COMMENT "Generating the escape tables..." VERBATIM
+)
+add_custom_command(
+  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/folly/build/FormatTables.cpp"
+  COMMAND ${PYTHON_EXECUTABLE} "${FOLLY_DIR}/build/generate_format_tables.py"
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/folly/build/
+  COMMENT "Generating the format tables..." VERBATIM
+)
+add_custom_command(
+  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/folly/build/GroupVarintTables.cpp"
+  COMMAND ${PYTHON_EXECUTABLE} "${FOLLY_DIR}/build/generate_varint_tables.py"
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/folly/build/
+  COMMENT "Generating the group varint tables..." VERBATIM
+)
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/CMake/folly-config.h.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/folly/folly-config.h
+)
 
 include(FollyCompiler)
 include(FollyFunctions)
@@ -44,6 +67,7 @@ auto_sources(hfiles "*.h" "RECURSE" "${FOLLY_DIR}")
 
 # No need for tests or benchmarks, and we can't build most experimental stuff.
 REMOVE_MATCHES_FROM_LISTS(files hfiles MATCHES
+  "/build/"
   "/experimental/exception_tracer/"
   "/experimental/hazptr/example/"
   "/experimental/symbolizer/"
@@ -58,7 +82,6 @@ REMOVE_MATCHES_FROM_LISTS(files hfiles MATCHES
 list(REMOVE_ITEM files
   ${FOLLY_DIR}/SingletonStackTrace.cpp
   ${FOLLY_DIR}/Subprocess.cpp
-  ${FOLLY_DIR}/build/GenerateFingerprintTables.cpp
   ${FOLLY_DIR}/experimental/DynamicParser.cpp
   ${FOLLY_DIR}/experimental/JSONSchemaTester.cpp
   ${FOLLY_DIR}/experimental/NestedCommandLineApp.cpp
@@ -71,7 +94,10 @@ list(REMOVE_ITEM files
   ${FOLLY_DIR}/futures/test/Benchmark.cpp
 )
 list(REMOVE_ITEM hfiles
+  ${FOLLY_DIR}/Fingerprint.h
   ${FOLLY_DIR}/Subprocess.h
+  ${FOLLY_DIR}/detail/SlowFingerprint.h
+  ${FOLLY_DIR}/detail/FingerprintPolynomial.h
   ${FOLLY_DIR}/experimental/DynamicParser.h
   ${FOLLY_DIR}/experimental/DynamicParser-inl.h
   ${FOLLY_DIR}/experimental/NestedCommandLineApp.h
@@ -84,46 +110,94 @@ list(REMOVE_ITEM hfiles
   ${FOLLY_DIR}/io/Compression.h
 )
 
-add_library(folly ${files} ${hfiles})
-auto_source_group(folly ${FOLLY_DIR} ${files} ${hfiles})
-apply_folly_compile_options_to_target(folly)
-
-target_compile_definitions(folly
-  PUBLIC
-    HAVE_MODE_T
-    HAVE_BOOST1_49
-    FOLLY_HAVE_WEAK_SYMBOLS=0
-    FOLLY_HAVE_MEMRCHR=0
-    FOLLY_HAVE_PREADV=0
-    FOLLY_HAVE_PWRITEV=0
-    FOLLY_HAVE_LIBGFLAGS=1
-    FOLLY_HAVE_VLA=0
-    FOLLY_NO_CONFIG=1
-    FOLLY_HAVE_PTHREAD_SPINLOCK_T=1
-    FOLLY_HAVE_MALLOC_H=1
-    FOLLY_HAVE_UNALIGNED_ACCESS=1
-    FOLLY_HAVE_STD__IS_TRIVIALLY_COPYABLE=1
-  PRIVATE
-    "FOLLY_VERSION=\"${PACKAGE_VERSION}\""
+add_library(folly_base STATIC
+  ${files} ${hfiles}
+  ${CMAKE_CURRENT_BINARY_DIR}/folly/folly-config.h
+  ${CMAKE_CURRENT_BINARY_DIR}/folly/build/EscapeTables.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/folly/build/FormatTables.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/folly/build/GroupVarintTables.cpp
 )
+auto_source_group(folly_base ${FOLLY_DIR} ${files} ${hfiles})
+apply_folly_compile_options_to_target(folly_base)
+target_include_directories(folly_base PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
-target_include_directories(folly
-  PUBLIC
-    ${Boost_INCLUDE_DIRS}
-    ${OPENSSL_INCLUDE_DIR}
+find_package(Boost 1.55.0
+  COMPONENTS
+    context
+    chrono
+    date_time
+    filesystem
+    program_options
+    regex
+    system
+    thread
+  REQUIRED
 )
-
-target_link_libraries(folly
+find_package(double-conversion REQUIRED)
+find_package(gflags REQUIRED)
+find_package(Glog REQUIRED)
+find_package(LibEvent REQUIRED)
+find_package(OpenSSL REQUIRED)
+find_package(PThread REQUIRED)
+target_link_libraries(folly_base
   PUBLIC
-    ${Boost_LIBRARIES}
+    Boost::chrono
+    Boost::context
+    Boost::date_time
+    Boost::filesystem
+    Boost::program_options
+    Boost::regex
+    Boost::system
     double-conversion
     event
     gflags
     glog::glog
     pthread
-    ${OPENSSL_LIBRARIES}
+    OpenSSL::SSL
+    OpenSSL::Crypto
     Ws2_32.lib
 )
+
+# Now to generate the fingerprint tables
+add_executable(GenerateFingerprintTables
+  ${FOLLY_DIR}/build/GenerateFingerprintTables.cpp
+)
+apply_folly_compile_options_to_target(GenerateFingerprintTables)
+set_property(TARGET GenerateFingerprintTables PROPERTY FOLDER "Build")
+target_link_libraries(GenerateFingerprintTables PRIVATE folly_base)
+
+# Compile the fingerprint tables.
+add_custom_command(
+  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/folly/build/FingerprintTables.cpp"
+  COMMAND GenerateFingerprintTables
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/folly/build/
+  COMMENT "Generating the fingerprint tables..."
+)
+add_library(folly_fingerprint STATIC
+  "${CMAKE_CURRENT_BINARY_DIR}/folly/build/FingerprintTables.cpp"
+  "${FOLLY_DIR}/Fingerprint.h"
+  "${FOLLY_DIR}/detail/SlowFingerprint.h"
+  "${FOLLY_DIR}/detail/FingerprintPolynomial.h"
+)
+apply_folly_compile_options_to_target(folly_fingerprint)
+target_link_libraries(folly_fingerprint PRIVATE folly_base)
+
+# We want to generate a single library and target for folly, but we needed a
+# two-stage compile for the fingerprint tables, so we create a phony source
+# file that we modify whenever the base libraries change, causing folly to be
+# re-linked, making things happy.
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/folly_dep.cpp
+  COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/folly_dep.cpp
+  DEPENDS folly_base folly_fingerprint
+)
+add_library(folly ${CMAKE_CURRENT_BINARY_DIR}/folly_dep.cpp)
+apply_folly_compile_options_to_target(folly)
+
+# Rather than list the dependencies in two places, we apply them directly on
+# the folly_base target and then copy them over to the folly target.
+get_target_property(FOLLY_LINK_LIBRARIES folly_base INTERFACE_LINK_LIBRARIES)
+target_link_libraries(folly PUBLIC ${FOLLY_LINK_LIBRARIES})
+target_include_directories(folly PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 
 install(TARGETS folly
   EXPORT folly
@@ -135,7 +209,7 @@ install(EXPORT folly DESTINATION share/folly FILE folly-config.cmake)
 
 option(BUILD_TESTS "If enabled, compile the tests." OFF)
 option(BUILD_HANGING_TESTS "If enabled, compile tests that are known to hang." OFF)
-option(BUILD_HANGING_TESTS "If enabled, compile tests that take a while to run in debug mode." OFF)
+option(BUILD_SLOW_TESTS "If enabled, compile tests that take a while to run in debug mode." OFF)
 if (BUILD_TESTS)
   find_package(gmock REQUIRED)
 
@@ -163,7 +237,8 @@ if (BUILD_TESTS)
     ${FOLLY_DIR}/io/async/test/Util.h
   )
   target_link_libraries(folly_test_support
-    PRIVATE
+    PUBLIC
+      Boost::thread
       folly
       gmock
   )
@@ -210,7 +285,18 @@ if (BUILD_TESTS)
     ${FOLLY_DIR}/io/async/test/AsyncSocketTest.h
     ${FOLLY_DIR}/io/async/test/AsyncSSLSocketTest.h
     ${FOLLY_DIR}/io/async/test/BlockingSocket.h
+    
+    ${FOLLY_DIR}/io/async/test/certs/tests-cert.pem
+    ${FOLLY_DIR}/io/async/test/certs/tests-key.pem
+    ${FOLLY_DIR}/io/async/test/certs/ca-cert.pem
   )
+  add_custom_command(TARGET async_test POST_BUILD COMMAND
+    ${CMAKE_COMMAND} ARGS -E copy_directory
+      ${FOLLY_DIR}/io/async/test/certs/
+      $<TARGET_FILE_DIR:async_test>/folly/io/async/test/certs/
+    COMMENT "Copying test certificates" VERBATIM
+  )
+  
   folly_test(async_timeout_test "${FOLLY_DIR}/io/async/test/" "io/async/"  ${FOLLY_DIR}/io/async/test/AsyncTimeoutTest.cpp)
   folly_test(AsyncUDPSocketTest "${FOLLY_DIR}/io/async/test/" "io/async/"  ${FOLLY_DIR}/io/async/test/AsyncUDPSocketTest.cpp)
   folly_test(DelayedDestructionTest "${FOLLY_DIR}/io/async/test/" "io/async/"  ${FOLLY_DIR}/io/async/test/DelayedDestructionTest.cpp)
