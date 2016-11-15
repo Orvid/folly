@@ -128,9 +128,123 @@ function(auto_source_group rootName rootDir)
   endforeach()
 endfunction()
 
-function(folly_test testName containingPath relPath)
-  add_executable(${testName} ${ARGN})
-  set_property(TARGET ${testName} PROPERTY FOLDER "Tests/${relPath}")
-  target_link_libraries(${testName} PRIVATE folly_test_support)
-  apply_folly_compile_options_to_target(${testName})
+function(folly_define_tests)
+  set(directory_count 0)
+  set(test_count 0)
+  set(currentArg 0)
+  while (currentArg LESS ${ARGC})
+    if ("x${ARGV${currentArg}}" STREQUAL "xDIRECTORY")
+      math(EXPR currentArg "${currentArg} + 1")
+      if (NOT currentArg LESS ${ARGC})
+        message(FATAL_ERROR "Expected base directory!")
+      endif()
+
+      set(cur_dir ${directory_count})
+      math(EXPR directory_count "${directory_count} + 1")
+      set(directory_${cur_dir}_name "${ARGV${currentArg}}")
+      # We need a single list of sources to get source_group to work nicely.
+      set(directory_${cur_dir}_source_list)
+
+      math(EXPR currentArg "${currentArg} + 1")
+      while (currentArg LESS ${ARGC})
+        if ("x${ARGV${currentArg}}" STREQUAL "xDIRECTORY")
+          break()
+        elseif ("x${ARGV${currentArg}}" STREQUAL "xTEST")
+          math(EXPR currentArg "${currentArg} + 1")
+          if (NOT currentArg LESS ${ARGC})
+            message(FATAL_ERROR "Expected test name!")
+          endif()
+
+          set(cur_test ${test_count})
+          math(EXPR test_count "${test_count} + 1")
+          set(test_${cur_test}_name "${ARGV${currentArg}}")
+          math(EXPR currentArg "${currentArg} + 1")
+          set(test_${cur_test}_directory ${cur_dir})
+          set(test_${cur_test}_content_dir)
+          set(test_${cur_test}_headers)
+          set(test_${cur_test}_sources)
+          set(test_${cur_test}_tag "NONE")
+
+          set(argumentState 0)
+          while (currentArg LESS ${ARGC})
+            if ("x${ARGV${currentArg}}" STREQUAL "xHEADERS")
+              set(argumentState 1)
+            elseif ("x${ARGV${currentArg}}" STREQUAL "xSOURCES")
+              set(argumentState 2)
+            elseif ("x${ARGV${currentArg}}" STREQUAL "xCONTENT_DIR")
+              math(EXPR currentArg "${currentArg} + 1")
+              if (NOT currentArg LESS ${ARGC})
+                message(FATAL_ERROR "Expected content directory name!")
+              endif()
+              set(test_${cur_test}_content_dir "${ARGV${currentArg}}")
+            elseif ("x${ARGV${currentArg}}" STREQUAL "xTEST" OR
+                    "x${ARGV${currentArg}}" STREQUAL "xDIRECTORY")
+              break()
+            elseif (argumentState EQUAL 0)
+              if ("x${ARGV${currentArg}}" STREQUAL "xHANGING")
+                set(test_${cur_test}_tag "HANGING")
+              elseif ("x${ARGV${currentArg}}" STREQUAL "xSLOW")
+                set(test_${cur_test}_tag "SLOW")
+              else()
+                message(FATAL_ERROR "Unknown test tag '${ARGV${currentArg}}'!")
+              endif()
+            elseif (argumentState EQUAL 1)
+              list(APPEND test_${cur_test}_headers
+                "${FOLLY_DIR}/${directory_${cur_dir}_name}${ARGV${currentArg}}"
+              )
+            elseif (argumentState EQUAL 2)
+              list(APPEND test_${cur_test}_sources
+                "${FOLLY_DIR}/${directory_${cur_dir}_name}${ARGV${currentArg}}"
+              )
+            else()
+              message(FATAL_ERROR "Unknown argument state!")
+            endif()
+            math(EXPR currentArg "${currentArg} + 1")
+          endwhile()
+
+          list(APPEND directory_${cur_dir}_source_list
+            ${test_${cur_test}_sources} ${test_${cur_test}_headers})
+        else()
+          message(FATAL_ERROR "Unknown argument inside directory '${ARGV${currentArg}}'!")
+        endif()
+      endwhile()
+    else()
+      message(FATAL_ERROR "Unknown argument '${ARGV${currentArg}}'!")
+    endif()
+  endwhile()
+
+  set(cur_dir 0)
+  while (cur_dir LESS directory_count)
+    source_group("" FILES ${directory_${cur_dir}_source_list})
+    math(EXPR cur_dir "${cur_dir} + 1")
+  endwhile()
+
+  set(cur_test 0)
+  while (cur_test LESS test_count)
+    if ("x${test_${cur_test}_tag}" STREQUAL "xNONE" OR
+        ("x${test_${cur_test}_tag}" STREQUAL "xSLOW" AND BUILD_SLOW_TESTS) OR
+        ("x${test_${cur_test}_tag}" STREQUAL "xHANGING" AND BUILD_HANGING_TESTS)
+    )
+      set(cur_test_name ${test_${cur_test}_name})
+      set(cur_dir_name ${directory_${test_${cur_test}_directory}_name})
+      add_executable(${cur_test_name}
+        ${test_${cur_test}_headers}
+        ${test_${cur_test}_sources}
+      )
+      if (NOT "x${test_${cur_test}_content_dir}" STREQUAL "x")
+        add_custom_command(TARGET ${cur_test_name} POST_BUILD COMMAND
+          ${CMAKE_COMMAND} ARGS -E copy_directory
+            "${FOLLY_DIR}/${cur_dir_name}${test_${cur_test}_content_dir}"
+            "$<TARGET_FILE_DIR:${cur_test_name}>/folly/${cur_dir_name}${test_${cur_test}_content_dir}"
+          COMMENT "Copying test content for ${cur_test_name}" VERBATIM
+        )
+      endif()
+      # Strip the tailing test directory name for the folder name.
+      string(REPLACE "test/" "" test_dir_name "${cur_dir_name}")
+      set_property(TARGET ${cur_test_name} PROPERTY FOLDER "Tests/${test_dir_name}")
+      target_link_libraries(${cur_test_name} PRIVATE folly_test_support)
+      apply_folly_compile_options_to_target(${cur_test_name})
+    endif()
+    math(EXPR cur_test "${cur_test} + 1")
+  endwhile()
 endfunction()

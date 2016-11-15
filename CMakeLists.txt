@@ -120,6 +120,12 @@ add_library(folly_base STATIC
 auto_source_group(folly_base ${FOLLY_DIR} ${files} ${hfiles})
 apply_folly_compile_options_to_target(folly_base)
 target_include_directories(folly_base PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+source_group("folly_base" FILES ${CMAKE_CURRENT_BINARY_DIR}/folly/folly-config.h)
+source_group("folly_base\\build" FILES
+  ${CMAKE_CURRENT_BINARY_DIR}/folly/build/EscapeTables.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/folly/build/FormatTables.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/folly/build/GroupVarintTables.cpp
+)
 
 find_package(Boost 1.55.0
   COMPONENTS
@@ -244,196 +250,188 @@ if (BUILD_TESTS)
   )
   apply_folly_compile_options_to_target(folly_test_support)
 
-  # /experimental/test/
-  folly_test(autotimer_test "${FOLLY_DIR}/experimental/test/" "experimental/"  ${FOLLY_DIR}/experimental/test/AutoTimerTest.cpp)
-  folly_test(bits_test_2 "${FOLLY_DIR}/experimental/test/" "experimental/"  ${FOLLY_DIR}/experimental/test/BitsTest.cpp)
-  folly_test(bitvector_test "${FOLLY_DIR}/experimental/test/" "experimental/"  ${FOLLY_DIR}/experimental/test/BitVectorCodingTest.cpp)
-  folly_test(eliasfano_test "${FOLLY_DIR}/experimental/test/" "experimental/"  ${FOLLY_DIR}/experimental/test/EliasFanoCodingTest.cpp)
-  folly_test(function_scheduler_test_2 "${FOLLY_DIR}/experimental/test/" "experimental/"  ${FOLLY_DIR}/experimental/test/FunctionSchedulerTest.cpp)
-  folly_test(future_dag_test "${FOLLY_DIR}/experimental/test/" "experimental/"  ${FOLLY_DIR}/experimental/test/FutureDAGTest.cpp)
-  folly_test(json_schema_test "${FOLLY_DIR}/experimental/test/" "experimental/"  ${FOLLY_DIR}/experimental/test/JSONSchemaTest.cpp)
-  folly_test(lock_free_ring_buffer_test "${FOLLY_DIR}/experimental/test/" "experimental/"  ${FOLLY_DIR}/experimental/test/LockFreeRingBufferTest.cpp)
-  folly_test(stringkeyed_test "${FOLLY_DIR}/experimental/test/" "experimental/"  ${FOLLY_DIR}/experimental/test/StringKeyedTest.cpp)
-  folly_test(test_util_test "${FOLLY_DIR}/experimental/test/" "experimental/"  ${FOLLY_DIR}/experimental/test/TestUtilTest.cpp)
-  folly_test(tuple_ops_test "${FOLLY_DIR}/experimental/test/" "experimental/"  ${FOLLY_DIR}/experimental/test/TupleOpsTest.cpp)
+  folly_define_tests(
+    DIRECTORY experimental/test/
+      TEST autotimer_test SOURCES AutoTimerTest.cpp
+      TEST bits_test_2 SOURCES BitsTest.cpp
+      TEST bitvector_test SOURCES BitVectorCodingTest.cpp
+      TEST eliasfano_test SOURCES EliasFanoCodingTest.cpp
+      TEST function_scheduler_test_2 SOURCES FunctionSchedulerTest.cpp
+      TEST future_dag_test SOURCES FutureDAGTest.cpp
+      TEST json_schema_test SOURCES JSONSchemaTest.cpp
+      TEST lock_free_ring_buffer_test SOURCES LockFreeRingBufferTest.cpp
+      TEST stringkeyed_test SOURCES StringKeyedTest.cpp
+      TEST test_util_test SOURCES TestUtilTest.cpp
+      TEST tuple_ops_test SOURCES TupleOpsTest.cpp
 
-  # /experimental/io/test/
-  folly_test(fs_util_test "${FOLLY_DIR}/experimental/io/test/" "experimental/io/"  ${FOLLY_DIR}/experimental/io/test/FsUtilTest.cpp)
+    DIRECTORY experimental/io/test/
+      TEST fs_util_test SOURCES FsUtilTest.cpp
 
-  # /fibers/test/
-  folly_test(fibers_test "${FOLLY_DIR}/fibers/test/" "fibers/"  ${FOLLY_DIR}/fibers/test/FibersTest.cpp)
+    DIRECTORY fibers/test/
+      TEST fibers_test SOURCES FibersTest.cpp
 
-  # /gen/test/
-  folly_test(combine_test "${FOLLY_DIR}/gen/test/" "gen/"  ${FOLLY_DIR}/gen/test/CombineTest.cpp)
+    DIRECTORY gen/test/
+      TEST combine_test SOURCES CombineTest.cpp
 
-  # /io/test/
-  folly_test(iobuf_test "${FOLLY_DIR}/io/test/" "io/"  ${FOLLY_DIR}/io/test/IOBufTest.cpp)
-  folly_test(iobuf_cursor_test "${FOLLY_DIR}/io/test/" "io/"  ${FOLLY_DIR}/io/test/IOBufCursorTest.cpp)
-  folly_test(iobuf_queue_test "${FOLLY_DIR}/io/test/" "io/"  ${FOLLY_DIR}/io/test/IOBufQueueTest.cpp)
-  folly_test(record_io_test "${FOLLY_DIR}/io/test/" "io/"  ${FOLLY_DIR}/io/test/RecordIOTest.cpp)
+    DIRECTORY io/test/
+      TEST iobuf_test SOURCES IOBufTest.cpp
+      TEST iobuf_cursor_test SOURCES IOBufCursorTest.cpp
+      TEST iobuf_queue_test SOURCES IOBufQueueTest.cpp
+      TEST record_io_test SOURCES RecordIOTest.cpp
+      TEST ShutdownSocketSetTest HANGING
+        SOURCES ShutdownSocketSetTest.cpp
 
-  # /io/async/test/
-  folly_test(async_test "${FOLLY_DIR}/io/async/test/" "io/async/"
-    ${FOLLY_DIR}/io/async/test/AsyncPipeTest.cpp
-    ${FOLLY_DIR}/io/async/test/AsyncSocketExceptionTest.cpp
-    ${FOLLY_DIR}/io/async/test/AsyncSocketTest.cpp
-    ${FOLLY_DIR}/io/async/test/AsyncSocketTest2.cpp
-    ${FOLLY_DIR}/io/async/test/AsyncSSLSocketTest.cpp
-    ${FOLLY_DIR}/io/async/test/AsyncSSLSocketTest2.cpp
-    ${FOLLY_DIR}/io/async/test/AsyncSSLSocketWriteTest.cpp
-    ${FOLLY_DIR}/io/async/test/AsyncTransportTest.cpp
-    ${FOLLY_DIR}/io/async/test/AsyncSocketTest.h
-    ${FOLLY_DIR}/io/async/test/AsyncSSLSocketTest.h
-    ${FOLLY_DIR}/io/async/test/BlockingSocket.h
-    
-    ${FOLLY_DIR}/io/async/test/certs/tests-cert.pem
-    ${FOLLY_DIR}/io/async/test/certs/tests-key.pem
-    ${FOLLY_DIR}/io/async/test/certs/ca-cert.pem
+    DIRECTORY io/async/test/
+      TEST async_test
+        CONTENT_DIR certs/
+        HEADERS
+          AsyncSocketTest.h
+          AsyncSSLSocketTest.h
+        SOURCES
+          AsyncPipeTest.cpp
+          AsyncSocketExceptionTest.cpp
+          AsyncSocketTest.cpp
+          AsyncSocketTest2.cpp
+          AsyncSSLSocketTest.cpp
+          AsyncSSLSocketTest2.cpp
+          AsyncSSLSocketWriteTest.cpp
+          AsyncTransportTest.cpp
+      TEST async_timeout_test SOURCES AsyncTimeoutTest.cpp
+      TEST AsyncUDPSocketTest SOURCES AsyncUDPSocketTest.cpp
+      TEST DelayedDestructionTest SOURCES DelayedDestructionTest.cpp
+      TEST DelayedDestructionBaseTest SOURCES DelayedDestructionBaseTest.cpp
+      TEST EventBaseTest SOURCES EventBaseTest.cpp
+      TEST EventBaseLocalTest SOURCES EventBaseLocalTest.cpp
+      TEST HHWheelTimerTest SOURCES HHWheelTimerTest.cpp
+      TEST HHWheelTimerSlowTests SLOW
+        SOURCES HHWheelTimerSlowTests.cpp
+      TEST NotificationQueueTest SOURCES NotificationQueueTest.cpp
+      TEST RequestContextTest SOURCES RequestContextTest.cpp
+      TEST ScopedEventBaseThreadTest SOURCES ScopedEventBaseThreadTest.cpp
+      TEST writechain_test SOURCES WriteChainAsyncTransportWrapperTest.cpp
+
+    DIRECTORY io/async/ssl/test/
+      TEST ssl_errors_test SOURCES SSLErrorsTest.cpp
+
+    DIRECTORY portability/test/
+      TEST constexpr_test SOURCES ConstexprTest.cpp
+      TEST libgen-test SOURCES LibgenTest.cpp
+      TEST time-test SOURCES TimeTest.cpp
+
+    DIRECTORY ssl/test/
+      TEST openssl_hash_test SOURCES OpenSSLHashTest.cpp
+
+    DIRECTORY test/
+      TEST ahm_int_stress_test SOURCES AHMIntStressTest.cpp
+      TEST apply_tuple_test SOURCES ApplyTupleTest.cpp
+      TEST arena_test SOURCES ArenaTest.cpp
+      TEST arena_smartptr_test SOURCES ArenaSmartPtrTest.cpp
+      TEST array_test SOURCES ArrayTest.cpp
+      TEST ascii_check_test SOURCES AsciiCaseInsensitiveTest.cpp
+      TEST atomic_bit_set_test SOURCES AtomicBitSetTest.cpp
+      TEST atomic_hash_array_test SOURCES AtomicHashArrayTest.cpp
+      TEST atomic_hash_map_test HANGING
+        SOURCES AtomicHashMapTest.cpp
+      TEST atomic_linked_list_test SOURCES AtomicLinkedListTest.cpp
+      TEST atomic_struct_test SOURCES AtomicStructTest.cpp
+      TEST atomic_unordered_map_test SOURCES AtomicUnorderedMapTest.cpp
+      TEST baton_test SOURCES BatonTest.cpp
+      TEST bit_iterator_test SOURCES BitIteratorTest.cpp
+      TEST bits_test SOURCES BitsTest.cpp
+      TEST cache_locality_test SOURCES CacheLocalityTest.cpp
+      TEST call_once_test SOURCES CallOnceTest.cpp
+      TEST checksum_test SOURCES ChecksumTest.cpp
+      TEST clock_gettime_wrappers_test SOURCES ClockGettimeWrappersTest.cpp
+      TEST container_traits_test SOURCES ContainerTraitsTest.cpp
+      TEST conv_test SOURCES ConvTest.cpp
+      TEST cpu_id_test SOURCES CpuIdTest.cpp
+      TEST demangle_test SOURCES DemangleTest.cpp
+      TEST deterministic_schedule_test SOURCES DeterministicScheduleTest.cpp
+      TEST discriminated_ptr_test SOURCES DiscriminatedPtrTest.cpp
+      TEST dynamic_test SOURCES DynamicTest.cpp
+      TEST dynamic_converter_test SOURCES DynamicConverterTest.cpp
+      TEST dynamic_other_test SOURCES DynamicOtherTest.cpp
+      TEST endian_test SOURCES EndianTest.cpp
+      TEST enumerate_test SOURCES EnumerateTest.cpp
+      TEST evicting_cache_map_test SOURCES EvictingCacheMapTest.cpp
+      TEST exception_test SOURCES ExceptionTest.cpp
+      TEST exception_wrapper_test SOURCES ExceptionWrapperTest.cpp
+      TEST expected_test SOURCES ExpectedTest.cpp
+      TEST fbvector_test SOURCES FBVectorTest.cpp
+      TEST file_test SOURCES FileTest.cpp
+      TEST file_util_test HANGING SOURCES FileUtilTest.cpp
+      TEST foreach_test SOURCES ForeachTest.cpp
+      TEST format_other_test SOURCES FormatOtherTest.cpp
+      TEST format_test SOURCES FormatTest.cpp
+      TEST function_scheduler_test SOURCES FunctionSchedulerTest.cpp
+      TEST function_test SOURCES FunctionTest.cpp
+      TEST futex_test SOURCES FutexTest.cpp
+      TEST group_varint_test SOURCES GroupVarintTest.cpp
+      TEST group_varint_test_ssse3 SOURCES GroupVarintTest.cpp
+      TEST has_member_fn_traits_test SOURCES HasMemberFnTraitsTest.cpp
+      TEST hash_test SOURCES HashTest.cpp
+      TEST histogram_test SOURCES HistogramTest.cpp
+      TEST indestructible_test SOURCES IndestructibleTest.cpp
+      TEST indexed_mem_pool_test SOURCES IndexedMemPoolTest.cpp
+      TEST json_other_test
+        CONTENT_DIR json_test_data/
+        SOURCES
+          JsonOtherTest.cpp
+      TEST lazy_test SOURCES LazyTest.cpp
+      TEST lifosem_test SOURCES LifoSemTests.cpp
+      TEST lock_traits_test SOURCES LockTraitsTest.cpp
+      TEST locks_test SOURCES SmallLocksTest.cpp SpinLockTest.cpp
+      TEST logging_test SOURCES LoggingTest.cpp
+      TEST mallctl_helper_test SOURCES MallctlHelperTest.cpp
+      TEST map_util_test SOURCES MapUtilTest.cpp
+      TEST memcpy_test SOURCES MemcpyTest.cpp
+      TEST memory_idler_test SOURCES MemoryIdlerTest.cpp
+      TEST memory_mapping_test SOURCES MemoryMappingTest.cpp
+      TEST memory_test SOURCES MemoryTest.cpp
+      TEST merge SOURCES MergeTest.cpp
+      TEST move_wrapper_test SOURCES MoveWrapperTest.cpp
+      TEST mpmc_pipeline_test SOURCES MPMCPipelineTest.cpp
+      TEST mpmc_queue_test SLOW
+        SOURCES MPMCQueueTest.cpp
+      TEST network_address_test HANGING
+        SOURCES
+          IPAddressTest.cpp
+          MacAddressTest.cpp
+          SocketAddressTest.cpp
+      TEST optional_test SOURCES OptionalTest.cpp
+      TEST packed_sync_ptr_test HANGING
+        SOURCES PackedSyncPtrTest.cpp
+      TEST padded_test SOURCES PaddedTest.cpp
+      TEST partial_test SOURCES PartialTest.cpp
+      TEST portability_test SOURCES PortabilityTest.cpp
+      TEST producer_consumer_queue_test SLOW
+        SOURCES ProducerConsumerQueueTest.cpp
+      TEST r_w_spin_lock_test SOURCES RWSpinLockTest.cpp
+      TEST random_test SOURCES RandomTest.cpp
+      TEST range_test SOURCES RangeTest.cpp
+      TEST safe_assert_test SOURCES SafeAssertTest.cpp
+      TEST scope_guard_test SOURCES ScopeGuardTest.cpp
+      TEST singleton_test_global SOURCES SingletonTestGlobal.cpp
+      TEST singletonvault_c_test SOURCES SingletonVaultCTest.cpp
+      TEST small_vector_test SOURCES small_vector_test.cpp
+      TEST sorted_vector_types_test SOURCES sorted_vector_test.cpp
+      TEST sparse_byte_set_test SOURCES SparseByteSetTest.cpp
+      TEST spooky_hash_v1_test SOURCES SpookyHashV1Test.cpp
+      TEST spooky_hash_v2_test SOURCES SpookyHashV2Test.cpp
+      TEST string_test SOURCES StringTest.cpp
+      TEST synchronized_test SOURCES SynchronizedTest.cpp
+      TEST thread_cached_arena_test SOURCES ThreadCachedArenaTest.cpp
+      TEST thread_cached_int_test SOURCES ThreadCachedIntTest.cpp
+      TEST thread_local_test SOURCES ThreadLocalTest.cpp
+      TEST thread_name_test SOURCES ThreadNameTest.cpp
+      TEST timeout_queue_test SOURCES TimeoutQueueTest.cpp
+      TEST timeseries_histogram_test SOURCES TimeseriesHistogramTest.cpp
+      TEST timeseries_test SOURCES TimeseriesTest.cpp
+      TEST token_bucket_test SOURCES TokenBucketTest.cpp
+      TEST traits_test SOURCES TraitsTest.cpp
+      TEST try_test SOURCES TryTest.cpp
+      TEST unit_test SOURCES UnitTest.cpp
+      TEST uri_test SOURCES UriTest.cpp
+      TEST varint_test SOURCES VarintTest.cpp
   )
-  add_custom_command(TARGET async_test POST_BUILD COMMAND
-    ${CMAKE_COMMAND} ARGS -E copy_directory
-      ${FOLLY_DIR}/io/async/test/certs/
-      $<TARGET_FILE_DIR:async_test>/folly/io/async/test/certs/
-    COMMENT "Copying test certificates" VERBATIM
-  )
-  
-  folly_test(async_timeout_test "${FOLLY_DIR}/io/async/test/" "io/async/"  ${FOLLY_DIR}/io/async/test/AsyncTimeoutTest.cpp)
-  folly_test(AsyncUDPSocketTest "${FOLLY_DIR}/io/async/test/" "io/async/"  ${FOLLY_DIR}/io/async/test/AsyncUDPSocketTest.cpp)
-  folly_test(DelayedDestructionTest "${FOLLY_DIR}/io/async/test/" "io/async/"  ${FOLLY_DIR}/io/async/test/DelayedDestructionTest.cpp)
-  folly_test(DelayedDestructionBaseTest "${FOLLY_DIR}/io/async/test/" "io/async/"  ${FOLLY_DIR}/io/async/test/DelayedDestructionBaseTest.cpp)
-  folly_test(EventBaseTest "${FOLLY_DIR}/io/async/test/" "io/async/"  ${FOLLY_DIR}/io/async/test/EventBaseTest.cpp)
-  folly_test(EventBaseLocalTest "${FOLLY_DIR}/io/async/test/" "io/async/"  ${FOLLY_DIR}/io/async/test/EventBaseLocalTest.cpp)
-  folly_test(HHWheelTimerTest "${FOLLY_DIR}/io/async/test/" "io/async/"  ${FOLLY_DIR}/io/async/test/HHWheelTimerTest.cpp)
-  folly_test(NotificationQueueTest "${FOLLY_DIR}/io/async/test/" "io/async/"  ${FOLLY_DIR}/io/async/test/NotificationQueueTest.cpp)
-  folly_test(RequestContextTest "${FOLLY_DIR}/io/async/test/" "io/async/"  ${FOLLY_DIR}/io/async/test/RequestContextTest.cpp)
-  folly_test(ScopedEventBaseThreadTest "${FOLLY_DIR}/io/async/test/" "io/async/"  ${FOLLY_DIR}/io/async/test/ScopedEventBaseThreadTest.cpp)
-  folly_test(writechain_test "${FOLLY_DIR}/io/async/test/" "io/async/"  ${FOLLY_DIR}/io/async/test/WriteChainAsyncTransportWrapperTest.cpp)
-
-  # /io/async/ssl/test/
-  folly_test(ssl_errors_test "${FOLLY_DIR}/io/async/ssl/test/" "io/async/ssl/"  ${FOLLY_DIR}/io/async/ssl/test/SSLErrorsTest.cpp)
-
-  # /portability/test/
-  folly_test(constexpr_test "${FOLLY_DIR}/portability/" "portability/"  ${FOLLY_DIR}/portability/test/ConstexprTest.cpp)
-  folly_test(libgen-test "${FOLLY_DIR}/portability/" "portability/"  ${FOLLY_DIR}/portability/test/LibgenTest.cpp)
-  folly_test(time-test "${FOLLY_DIR}/portability/" "portability/"  ${FOLLY_DIR}/portability/test/TimeTest.cpp)
-
-  # /ssl/test/
-  folly_test(openssl_hash_test "${FOLLY_DIR}/ssl/test/" "ssl/"  ${FOLLY_DIR}/ssl/test/OpenSSLHashTest.cpp)
-
-  # /test/
-  folly_test(ahm_int_stress_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/AHMIntStressTest.cpp)
-  folly_test(apply_tuple_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/ApplyTupleTest.cpp)
-  folly_test(arena_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/ArenaTest.cpp)
-  folly_test(arena_smartptr_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/ArenaSmartPtrTest.cpp)
-  folly_test(array_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/ArrayTest.cpp)
-  folly_test(ascii_check_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/AsciiCaseInsensitiveTest.cpp)
-  folly_test(atomic_bit_set_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/AtomicBitSetTest.cpp)
-  folly_test(atomic_hash_array_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/AtomicHashArrayTest.cpp)
-  folly_test(atomic_linked_list_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/AtomicLinkedListTest.cpp)
-  folly_test(atomic_struct_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/AtomicStructTest.cpp)
-  folly_test(atomic_unordered_map_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/AtomicUnorderedMapTest.cpp)
-  folly_test(baton_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/BatonTest.cpp)
-  folly_test(bit_iterator_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/BitIteratorTest.cpp)
-  folly_test(bits_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/BitsTest.cpp)
-  folly_test(cache_locality_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/CacheLocalityTest.cpp)
-  folly_test(call_once_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/CallOnceTest.cpp)
-  folly_test(checksum_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/ChecksumTest.cpp)
-  folly_test(clock_gettime_wrappers_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/ClockGettimeWrappersTest.cpp)
-  folly_test(container_traits_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/ContainerTraitsTest.cpp)
-  folly_test(conv_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/ConvTest.cpp)
-  folly_test(cpu_id_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/CpuIdTest.cpp)
-  folly_test(demangle_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/DemangleTest.cpp)
-  folly_test(deterministic_schedule_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/DeterministicScheduleTest.cpp)
-  folly_test(discriminated_ptr_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/DiscriminatedPtrTest.cpp)
-  folly_test(dynamic_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/DynamicTest.cpp)
-  folly_test(dynamic_converter_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/DynamicConverterTest.cpp)
-  folly_test(dynamic_other_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/DynamicOtherTest.cpp)
-  folly_test(endian_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/EndianTest.cpp)
-  folly_test(enumerate_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/EnumerateTest.cpp)
-  folly_test(evicting_cache_map_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/EvictingCacheMapTest.cpp)
-  folly_test(exception_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/ExceptionTest.cpp)
-  folly_test(exception_wrapper_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/ExceptionWrapperTest.cpp)
-  folly_test(expected_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/ExpectedTest.cpp)
-  folly_test(fbvector_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/FBVectorTest.cpp)
-  folly_test(file_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/FileTest.cpp)
-  folly_test(foreach_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/ForeachTest.cpp)
-  folly_test(format_other_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/FormatOtherTest.cpp)
-  folly_test(format_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/FormatTest.cpp)
-  folly_test(function_scheduler_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/FunctionSchedulerTest.cpp)
-  folly_test(function_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/FunctionTest.cpp)
-  folly_test(futex_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/FutexTest.cpp)
-  folly_test(group_varint_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/GroupVarintTest.cpp)
-  folly_test(group_varint_test_ssse3 "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/GroupVarintTest.cpp)
-  folly_test(has_member_fn_traits_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/HasMemberFnTraitsTest.cpp)
-  folly_test(hash_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/HashTest.cpp)
-  folly_test(histogram_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/HistogramTest.cpp)
-  folly_test(indestructible_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/IndestructibleTest.cpp)
-  folly_test(indexed_mem_pool_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/IndexedMemPoolTest.cpp)
-  folly_test(json_other_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/JsonOtherTest.cpp)
-  folly_test(lazy_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/LazyTest.cpp)
-  folly_test(lifosem_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/LifoSemTests.cpp)
-  folly_test(locks_test "${FOLLY_DIR}/test/" ""
-    ${FOLLY_DIR}/test/SmallLocksTest.cpp
-    ${FOLLY_DIR}/test/SpinLockTest.cpp
-  )
-  folly_test(lock_traits_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/LockTraitsTest.cpp)
-  folly_test(logging_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/LoggingTest.cpp)
-  folly_test(mallctl_helper_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/MallctlHelperTest.cpp)
-  folly_test(map_util_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/MapUtilTest.cpp)
-  folly_test(memcpy_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/MemcpyTest.cpp)
-  folly_test(memory_idler_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/MemoryIdlerTest.cpp)
-  folly_test(memory_mapping_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/MemoryMappingTest.cpp)
-  folly_test(memory_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/MemoryTest.cpp)
-  folly_test(merge "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/MergeTest.cpp)
-  folly_test(move_wrapper_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/MoveWrapperTest.cpp)
-  folly_test(mpmc_pipeline_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/MPMCPipelineTest.cpp)
-  folly_test(optional_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/OptionalTest.cpp)
-  folly_test(padded_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/PaddedTest.cpp)
-  folly_test(partial_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/PartialTest.cpp)
-  folly_test(portability_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/PortabilityTest.cpp)
-  folly_test(r_w_spin_lock_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/RWSpinLockTest.cpp)
-  folly_test(random_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/RandomTest.cpp)
-  folly_test(range_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/RangeTest.cpp)
-  folly_test(safe_assert_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/SafeAssertTest.cpp)
-  folly_test(scope_guard_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/ScopeGuardTest.cpp)
-  folly_test(singleton_test_global "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/SingletonTestGlobal.cpp)
-  folly_test(singletonvault_c_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/SingletonVaultCTest.cpp)
-  folly_test(small_vector_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/small_vector_test.cpp)
-  folly_test(sorted_vector_types_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/sorted_vector_test.cpp)
-  folly_test(sparse_byte_set_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/SparseByteSetTest.cpp)
-  folly_test(spooky_hash_v1_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/SpookyHashV1Test.cpp)
-  folly_test(spooky_hash_v2_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/SpookyHashV2Test.cpp)
-  folly_test(string_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/StringTest.cpp)
-  folly_test(synchronized_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/SynchronizedTest.cpp)
-  folly_test(thread_cached_arena_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/ThreadCachedArenaTest.cpp)
-  folly_test(thread_cached_int_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/ThreadCachedIntTest.cpp)
-  folly_test(thread_local_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/ThreadLocalTest.cpp)
-  folly_test(thread_name_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/ThreadNameTest.cpp)
-  folly_test(timeout_queue_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/TimeoutQueueTest.cpp)
-  folly_test(timeseries_histogram_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/TimeseriesHistogramTest.cpp)
-  folly_test(timeseries_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/TimeseriesTest.cpp)
-  folly_test(token_bucket_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/TokenBucketTest.cpp)
-  folly_test(traits_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/TraitsTest.cpp)
-  folly_test(try_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/TryTest.cpp)
-  folly_test(unit_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/UnitTest.cpp)
-  folly_test(uri_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/UriTest.cpp)
-  folly_test(varint_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/VarintTest.cpp)
-
-  if (BUILD_HANGING_TESTS)
-    folly_test(ShutdownSocketSetTest "${FOLLY_DIR}/io/test/" "io/"  ${FOLLY_DIR}/io/test/ShutdownSocketSetTest.cpp)
-    folly_test(HHWheelTimerSlowTests "${FOLLY_DIR}/io/async/test/" "io/async/"  ${FOLLY_DIR}/io/async/test/HHWheelTimerSlowTests.cpp)
-    folly_test(atomic_hash_map_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/AtomicHashMapTest.cpp)
-    folly_test(file_util_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/FileUtilTest.cpp)
-    folly_test(network_address_test "${FOLLY_DIR}/test/" ""
-      ${FOLLY_DIR}/test/IPAddressTest.cpp
-      ${FOLLY_DIR}/test/MacAddressTest.cpp
-      ${FOLLY_DIR}/test/SocketAddressTest.cpp
-    )
-    folly_test(packed_sync_ptr_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/PackedSyncPtrTest.cpp)
-  endif()
-
-  if (BUILD_SLOW_TESTS)
-    folly_test(mpmc_queue_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/MPMCQueueTest.cpp)
-    folly_test(producer_consumer_queue_test "${FOLLY_DIR}/test/" ""  ${FOLLY_DIR}/test/ProducerConsumerQueueTest.cpp)
-  endif()
 endif()
