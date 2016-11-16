@@ -36,13 +36,13 @@ set(FOLLY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/folly")
 # Generate a few tables and create the main config file.
 find_package(PythonInterp REQUIRED)
 add_custom_command(
-  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/folly/build/EscapeTables.cpp"
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/folly/build/EscapeTables.cpp
   COMMAND ${PYTHON_EXECUTABLE} "${FOLLY_DIR}/build/generate_escape_tables.py"
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/folly/build/
   COMMENT "Generating the escape tables..." VERBATIM
 )
 add_custom_command(
-  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/folly/build/FormatTables.cpp"
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/folly/build/FormatTables.cpp
   COMMAND ${PYTHON_EXECUTABLE} "${FOLLY_DIR}/build/generate_format_tables.py"
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/folly/build/
   COMMENT "Generating the format tables..." VERBATIM
@@ -66,18 +66,19 @@ auto_sources(files "*.cpp" "RECURSE" "${FOLLY_DIR}")
 auto_sources(hfiles "*.h" "RECURSE" "${FOLLY_DIR}")
 
 # No need for tests or benchmarks, and we can't build most experimental stuff.
-REMOVE_MATCHES_FROM_LISTS(files hfiles MATCHES
-  "/build/"
-  "/experimental/exception_tracer/"
-  "/experimental/hazptr/example/"
-  "/experimental/symbolizer/"
-  "/futures/exercises/"
-  "/gen/"
-  "/test/"
-  "Benchmark.cpp$"
-  "Test.cpp$"
+REMOVE_MATCHES_FROM_LISTS(files hfiles
+  MATCHES
+    "/build/"
+    "/experimental/exception_tracer/"
+    "/experimental/hazptr/example/"
+    "/experimental/symbolizer/"
+    "/futures/exercises/"
+    "/gen/"
+    "/test/"
+    "Benchmark.cpp$"
+    "Test.cpp$"
   IGNORE_MATCHES
-  "/Benchmark.cpp$"
+    "/Benchmark.cpp$"
 )
 list(REMOVE_ITEM files
   ${FOLLY_DIR}/SingletonStackTrace.cpp
@@ -117,12 +118,14 @@ add_library(folly_base STATIC
   ${CMAKE_CURRENT_BINARY_DIR}/folly/build/FormatTables.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/folly/build/GroupVarintTables.cpp
 )
-auto_source_group(folly_base ${FOLLY_DIR} ${files} ${hfiles})
+auto_source_group(folly ${FOLLY_DIR} ${files} ${hfiles})
 apply_folly_compile_options_to_target(folly_base)
 target_include_directories(folly_base PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
-source_group("folly_base" FILES ${CMAKE_CURRENT_BINARY_DIR}/folly/folly-config.h)
-source_group("folly_base\\build" FILES
+# Add the generated files to the correct source group.
+source_group("folly" FILES ${CMAKE_CURRENT_BINARY_DIR}/folly/folly-config.h)
+source_group("folly\\build" FILES
   ${CMAKE_CURRENT_BINARY_DIR}/folly/build/EscapeTables.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/folly/build/FingerprintTables.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/folly/build/FormatTables.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/folly/build/GroupVarintTables.cpp
 )
@@ -171,19 +174,20 @@ add_executable(GenerateFingerprintTables
 apply_folly_compile_options_to_target(GenerateFingerprintTables)
 set_property(TARGET GenerateFingerprintTables PROPERTY FOLDER "Build")
 target_link_libraries(GenerateFingerprintTables PRIVATE folly_base)
+source_group("" FILES ${FOLLY_DIR}/build/GenerateFingerprintTables.cpp)
 
 # Compile the fingerprint tables.
 add_custom_command(
-  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/folly/build/FingerprintTables.cpp"
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/folly/build/FingerprintTables.cpp
   COMMAND GenerateFingerprintTables
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/folly/build/
   COMMENT "Generating the fingerprint tables..."
 )
 add_library(folly_fingerprint STATIC
-  "${CMAKE_CURRENT_BINARY_DIR}/folly/build/FingerprintTables.cpp"
-  "${FOLLY_DIR}/Fingerprint.h"
-  "${FOLLY_DIR}/detail/SlowFingerprint.h"
-  "${FOLLY_DIR}/detail/FingerprintPolynomial.h"
+  ${CMAKE_CURRENT_BINARY_DIR}/folly/build/FingerprintTables.cpp
+  ${FOLLY_DIR}/Fingerprint.h
+  ${FOLLY_DIR}/detail/SlowFingerprint.h
+  ${FOLLY_DIR}/detail/FingerprintPolynomial.h
 )
 apply_folly_compile_options_to_target(folly_fingerprint)
 target_link_libraries(folly_fingerprint PRIVATE folly_base)
@@ -198,6 +202,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/folly_dep.cpp
 )
 add_library(folly ${CMAKE_CURRENT_BINARY_DIR}/folly_dep.cpp)
 apply_folly_compile_options_to_target(folly)
+source_group("" FILES ${CMAKE_CURRENT_BINARY_DIR}/folly_dep.cpp)
 
 # Rather than list the dependencies in two places, we apply them directly on
 # the folly_base target and then copy them over to the folly target.
@@ -208,10 +213,16 @@ target_include_directories(folly PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY
 install(TARGETS folly
   EXPORT folly
   RUNTIME DESTINATION bin
-  LIBRARY DESTINATION bin
+  LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib)
-install(FILES ${hfiles} DESTINATION include)
-install(EXPORT folly DESTINATION share/folly FILE folly-config.cmake)
+auto_install_files(folly ${FOLLY_DIR}
+  ${hfiles}
+  ${FOLLY_DIR}/Fingerprint.h
+  ${FOLLY_DIR}/detail/SlowFingerprint.h
+  ${FOLLY_DIR}/detail/FingerprintPolynomial.h
+)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/folly/folly-config.h DESTINATION include/folly)
+install(EXPORT folly DESTINATION share/folly)
 
 option(BUILD_TESTS "If enabled, compile the tests." OFF)
 option(BUILD_HANGING_TESTS "If enabled, compile tests that are known to hang." OFF)
