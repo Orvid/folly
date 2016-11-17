@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.4.0 FATAL_ERROR)
 # we do a bit of a workaround here to inject a property into the generated
 # project files that will only get enabled for the folly target. Ugly, but
 # the alternatives are far, far worse.
-set(CMAKE_GENERATOR_TOOLSET "v140</PlatformToolset></PropertyGroup><ItemDefinitionGroup Condition=\"'$(ProjectName)'=='folly'\"><ProjectReference><LinkLibraryDependencies>true</LinkLibraryDependencies></ProjectReference></ItemDefinitionGroup><PropertyGroup><PlatformToolset>v140")
+set(CMAKE_GENERATOR_TOOLSET "v141</PlatformToolset></PropertyGroup><ItemDefinitionGroup Condition=\"'$(ProjectName)'=='folly'\"><ProjectReference><LinkLibraryDependencies>true</LinkLibraryDependencies></ProjectReference></ItemDefinitionGroup><PropertyGroup><PlatformToolset>v141")
 
 # includes
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
@@ -422,7 +422,10 @@ if (BUILD_TESTS)
       TEST range_test SOURCES RangeTest.cpp
       TEST safe_assert_test SOURCES SafeAssertTest.cpp
       TEST scope_guard_test SOURCES ScopeGuardTest.cpp
-      TEST singleton_test_global SOURCES SingletonTestGlobal.cpp
+      TEST singleton_test_global
+        SOURCES
+          SingletonTestGlobal.cpp
+          SingletonTestStructs.cpp
       TEST singletonvault_c_test SOURCES SingletonVaultCTest.cpp
       TEST small_vector_test SOURCES small_vector_test.cpp
       TEST sorted_vector_types_test SOURCES sorted_vector_test.cpp
