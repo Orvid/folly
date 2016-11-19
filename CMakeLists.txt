@@ -277,11 +277,9 @@ if (BUILD_TESTS)
       TEST lock_free_ring_buffer_test SOURCES LockFreeRingBufferTest.cpp
       # Depends on Subprocess
       #TEST nested_command_line_app_test SOURCES NestedCommandLineAppTest.cpp
-      # Depends on Subprocess
       #TEST program_options_test SOURCES ProgramOptionsTest.cpp
       # Depends on liburcu
       #TEST read_mostly_shared_ptr_test SOURCES ReadMostlySharedPtrTest.cpp
-      # Depends on liburcu
       #TEST ref_count_test SOURCES RefCountTest.cpp
       TEST stringkeyed_test SOURCES StringKeyedTest.cpp
       TEST test_util_test SOURCES TestUtilTest.cpp
@@ -312,8 +310,7 @@ if (BUILD_TESTS)
           # MSVC SFINAE bug
           #FutureTest.cpp
           HeaderCompileTest.cpp
-          # MSVC lambda name capture bug
-          #InterruptTest.cpp
+          InterruptTest.cpp
           MapTest.cpp
           NonCopyableLambdaTest.cpp
           PollTest.cpp
