@@ -235,6 +235,7 @@ if (BUILD_TESTS)
     ${FOLLY_DIR}/init/Init.h
     ${FOLLY_DIR}/test/DeterministicSchedule.cpp
     ${FOLLY_DIR}/test/DeterministicSchedule.h
+    ${FOLLY_DIR}/test/SingletonTestStructs.cpp
     ${FOLLY_DIR}/test/SocketAddressTestHelper.cpp
     ${FOLLY_DIR}/test/SocketAddressTestHelper.h
     ${FOLLY_DIR}/io/async/test/BlockingSocket.h
@@ -266,25 +267,85 @@ if (BUILD_TESTS)
       TEST autotimer_test SOURCES AutoTimerTest.cpp
       TEST bits_test_2 SOURCES BitsTest.cpp
       TEST bitvector_test SOURCES BitVectorCodingTest.cpp
+      TEST dynamic_parser_test SOURCES DynamicParserTest.cpp
       TEST eliasfano_test SOURCES EliasFanoCodingTest.cpp
+      # Just needs to be ported to use emulatable futex.
+      #TEST event_count_test SOURCES EventCountTest.cpp
       TEST function_scheduler_test_2 SOURCES FunctionSchedulerTest.cpp
       TEST future_dag_test SOURCES FutureDAGTest.cpp
       TEST json_schema_test SOURCES JSONSchemaTest.cpp
       TEST lock_free_ring_buffer_test SOURCES LockFreeRingBufferTest.cpp
+      # Depends on Subprocess
+      #TEST nested_command_line_app_test SOURCES NestedCommandLineAppTest.cpp
+      # Depends on Subprocess
+      #TEST program_options_test SOURCES ProgramOptionsTest.cpp
+      # Depends on liburcu
+      #TEST read_mostly_shared_ptr_test SOURCES ReadMostlySharedPtrTest.cpp
+      # Depends on liburcu
+      #TEST ref_count_test SOURCES RefCountTest.cpp
       TEST stringkeyed_test SOURCES StringKeyedTest.cpp
       TEST test_util_test SOURCES TestUtilTest.cpp
       TEST tuple_ops_test SOURCES TupleOpsTest.cpp
 
     DIRECTORY experimental/io/test/
+      # Depends on libaio
+      #TEST async_io_test SOURCES AsyncIOTest.cpp
       TEST fs_util_test SOURCES FsUtilTest.cpp
 
     DIRECTORY fibers/test/
       TEST fibers_test SOURCES FibersTest.cpp
 
+    DIRECTORY futures/test/
+      TEST futures-test
+        HEADERS
+          ThenCompileTest.h
+        SOURCES
+          BarrierTest.cpp
+          CollectTest.cpp
+          ContextTest.cpp
+          ConversionTest.cpp
+          CoreTest.cpp
+          EnsureTest.cpp
+          ExecutorTest.cpp
+          FSMTest.cpp
+          FilterTest.cpp
+          # MSVC SFINAE bug
+          #FutureTest.cpp
+          HeaderCompileTest.cpp
+          # MSVC lambda name capture bug
+          #InterruptTest.cpp
+          MapTest.cpp
+          NonCopyableLambdaTest.cpp
+          PollTest.cpp
+          PromiseTest.cpp
+          ReduceTest.cpp
+          # MSVC SFINAE bug
+          #RetryingTest.cpp
+          SelfDestructTest.cpp
+          SharedPromiseTest.cpp
+          ThenCompileTest.cpp
+          ThenTest.cpp
+          TimekeeperTest.cpp
+          TimesTest.cpp
+          UnwrapTest.cpp
+          ViaTest.cpp
+          WaitTest.cpp
+          WhenTest.cpp
+          WhileDoTest.cpp
+          WillEqualTest.cpp
+          WindowTest.cpp
+
     DIRECTORY gen/test/
+      # MSVC bug can't resolve initializer_list constructor properly
+      #TEST base_test SOURCES BaseTest.cpp
       TEST combine_test SOURCES CombineTest.cpp
+      # These both depend on Subprocess
+      #TEST parallel_map_test SOURCES ParallelMapTest.cpp
+      #TEST parallel_test SOURCES ParallelTest.cpp
 
     DIRECTORY io/test/
+      # Depends on compression stuff
+      #TEST compression_test SOURCES CompressionTest.cpp
       TEST iobuf_test SOURCES IOBufTest.cpp
       TEST iobuf_cursor_test SOURCES IOBufCursorTest.cpp
       TEST iobuf_queue_test SOURCES IOBufQueueTest.cpp
@@ -307,6 +368,9 @@ if (BUILD_TESTS)
           AsyncSSLSocketTest2.cpp
           AsyncSSLSocketWriteTest.cpp
           AsyncTransportTest.cpp
+          # This is disabled because it depends on things that don't exist
+          # on Windows.
+          #EventHandlerTest.cpp
       TEST async_timeout_test SOURCES AsyncTimeoutTest.cpp
       TEST AsyncUDPSocketTest SOURCES AsyncUDPSocketTest.cpp
       TEST DelayedDestructionTest SOURCES DelayedDestructionTest.cpp
@@ -319,6 +383,7 @@ if (BUILD_TESTS)
       TEST NotificationQueueTest SOURCES NotificationQueueTest.cpp
       TEST RequestContextTest SOURCES RequestContextTest.cpp
       TEST ScopedEventBaseThreadTest SOURCES ScopedEventBaseThreadTest.cpp
+      TEST ssl_session_test SOURCES SSLSessionTest.cpp
       TEST writechain_test SOURCES WriteChainAsyncTransportWrapperTest.cpp
 
     DIRECTORY io/async/ssl/test/
@@ -350,9 +415,12 @@ if (BUILD_TESTS)
       TEST bit_iterator_test SOURCES BitIteratorTest.cpp
       TEST bits_test SOURCES BitsTest.cpp
       TEST cache_locality_test SOURCES CacheLocalityTest.cpp
+      TEST cacheline_padded_test SOURCES CachelinePaddedTest.cpp
       TEST call_once_test SOURCES CallOnceTest.cpp
       TEST checksum_test SOURCES ChecksumTest.cpp
       TEST clock_gettime_wrappers_test SOURCES ClockGettimeWrappersTest.cpp
+      # MSVC bug in SFINAE
+      #TEST concurrent_skip_list_test SOURCES ConcurrentSkipListTest.cpp
       TEST container_traits_test SOURCES ContainerTraitsTest.cpp
       TEST conv_test SOURCES ConvTest.cpp
       TEST cpu_id_test SOURCES CpuIdTest.cpp
@@ -370,12 +438,16 @@ if (BUILD_TESTS)
       TEST expected_test SOURCES ExpectedTest.cpp
       TEST fbvector_test SOURCES FBVectorTest.cpp
       TEST file_test SOURCES FileTest.cpp
+      # Depends on Subprocess, which is unsupported on Windows
+      #TEST file_lock_test SOURCES FileLockTest.cpp
       TEST file_util_test HANGING SOURCES FileUtilTest.cpp
+      TEST fingerprint_test SOURCES FingerprintTest.cpp
       TEST foreach_test SOURCES ForeachTest.cpp
       TEST format_other_test SOURCES FormatOtherTest.cpp
       TEST format_test SOURCES FormatTest.cpp
       TEST function_scheduler_test SOURCES FunctionSchedulerTest.cpp
       TEST function_test SOURCES FunctionTest.cpp
+      TEST function_ref_test SOURCES FunctionRefTest.cpp
       TEST futex_test SOURCES FutexTest.cpp
       TEST group_varint_test SOURCES GroupVarintTest.cpp
       TEST group_varint_test_ssse3 SOURCES GroupVarintTest.cpp
@@ -384,6 +456,8 @@ if (BUILD_TESTS)
       TEST histogram_test SOURCES HistogramTest.cpp
       TEST indestructible_test SOURCES IndestructibleTest.cpp
       TEST indexed_mem_pool_test SOURCES IndexedMemPoolTest.cpp
+      # MSVC Preprocessor stringizing raw string literals bug
+      #TEST json_test SOURCES JsonTest.cpp
       TEST json_other_test
         CONTENT_DIR json_test_data/
         SOURCES
@@ -394,6 +468,7 @@ if (BUILD_TESTS)
       TEST locks_test SOURCES SmallLocksTest.cpp SpinLockTest.cpp
       TEST logging_test SOURCES LoggingTest.cpp
       TEST mallctl_helper_test SOURCES MallctlHelperTest.cpp
+      TEST math_test SOURCES MathTest.cpp
       TEST map_util_test SOURCES MapUtilTest.cpp
       TEST memcpy_test SOURCES MemcpyTest.cpp
       TEST memory_idler_test SOURCES MemoryIdlerTest.cpp
@@ -422,10 +497,11 @@ if (BUILD_TESTS)
       TEST range_test SOURCES RangeTest.cpp
       TEST safe_assert_test SOURCES SafeAssertTest.cpp
       TEST scope_guard_test SOURCES ScopeGuardTest.cpp
-      TEST singleton_test_global
-        SOURCES
-          SingletonTestGlobal.cpp
-          SingletonTestStructs.cpp
+      TEST shared_mutex_test SOURCES SharedMutexTest.cpp
+      TEST shell_test SOURCES ShellTest.cpp
+      TEST singleton_test SOURCES SingletonTest.cpp
+      TEST singleton_test_global SOURCES SingletonTestGlobal.cpp
+      TEST singleton_thread_local_test SOURCES SingletonThreadLocalTest.cpp
       TEST singletonvault_c_test SOURCES SingletonVaultCTest.cpp
       TEST small_vector_test SOURCES small_vector_test.cpp
       TEST sorted_vector_types_test SOURCES sorted_vector_test.cpp
@@ -433,6 +509,8 @@ if (BUILD_TESTS)
       TEST spooky_hash_v1_test SOURCES SpookyHashV1Test.cpp
       TEST spooky_hash_v2_test SOURCES SpookyHashV2Test.cpp
       TEST string_test SOURCES StringTest.cpp
+      # Is the test for Subprocess, which is unsupported on Windows.
+      #TEST subprocess_test SOURCES SubprocessTest.cpp
       TEST synchronized_test SOURCES SynchronizedTest.cpp
       TEST thread_cached_arena_test SOURCES ThreadCachedArenaTest.cpp
       TEST thread_cached_int_test SOURCES ThreadCachedIntTest.cpp

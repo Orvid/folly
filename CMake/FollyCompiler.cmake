@@ -116,6 +116,7 @@ function(apply_folly_compile_options_to_target THETARGET)
       /wd4255 # Implicitly converting function prototype from `()` to `(void)`.
       /wd4287 # Unsigned/negative constant mismatch.
       /wd4296 # '<' Expression is always false.
+      /wd4316 # Object allocated on the heap may not be aligned to 128.
       /wd4324 # Structure was padded due to alignment specifier.
       /wd4355 # 'this' used in base member initializer list.
       /wd4365 # Signed/unsigned mismatch.
