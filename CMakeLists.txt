@@ -83,7 +83,6 @@ REMOVE_MATCHES_FROM_LISTS(files hfiles
 list(REMOVE_ITEM files
   ${FOLLY_DIR}/SingletonStackTrace.cpp
   ${FOLLY_DIR}/Subprocess.cpp
-  ${FOLLY_DIR}/experimental/DynamicParser.cpp
   ${FOLLY_DIR}/experimental/JSONSchemaTester.cpp
   ${FOLLY_DIR}/experimental/NestedCommandLineApp.cpp
   ${FOLLY_DIR}/experimental/ProgramOptions.cpp
@@ -99,8 +98,6 @@ list(REMOVE_ITEM hfiles
   ${FOLLY_DIR}/Subprocess.h
   ${FOLLY_DIR}/detail/SlowFingerprint.h
   ${FOLLY_DIR}/detail/FingerprintPolynomial.h
-  ${FOLLY_DIR}/experimental/DynamicParser.h
-  ${FOLLY_DIR}/experimental/DynamicParser-inl.h
   ${FOLLY_DIR}/experimental/NestedCommandLineApp.h
   ${FOLLY_DIR}/experimental/ProgramOptions.h
   ${FOLLY_DIR}/experimental/RCURefCount.h
@@ -494,7 +491,8 @@ if (BUILD_TESTS)
       TEST range_test SOURCES RangeTest.cpp
       TEST safe_assert_test SOURCES SafeAssertTest.cpp
       TEST scope_guard_test SOURCES ScopeGuardTest.cpp
-      TEST shared_mutex_test SOURCES SharedMutexTest.cpp
+      # Heavily dependent on drand and srand48
+      #TEST shared_mutex_test SOURCES SharedMutexTest.cpp
       TEST shell_test SOURCES ShellTest.cpp
       TEST singleton_test SOURCES SingletonTest.cpp
       TEST singleton_test_global SOURCES SingletonTestGlobal.cpp
