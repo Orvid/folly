@@ -256,6 +256,13 @@ function(folly_define_tests)
         ${test_${cur_test}_sources}
       )
       if (NOT "x${test_${cur_test}_content_dir}" STREQUAL "x")
+        # Copy the content directory to the output directory tree so that
+        # tests can be run easily from Visual Studio without having to change
+        # the working directory for each test individually.
+        file(
+          COPY "${FOLLY_DIR}/${cur_dir_name}${test_${cur_test}_content_dir}"
+          DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/folly/${cur_dir_name}${test_${cur_test}_content_dir}"
+        )
         add_custom_command(TARGET ${cur_test_name} POST_BUILD COMMAND
           ${CMAKE_COMMAND} ARGS -E copy_directory
             "${FOLLY_DIR}/${cur_dir_name}${test_${cur_test}_content_dir}"
