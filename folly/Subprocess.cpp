@@ -22,6 +22,8 @@
 
 #if __linux__
 #include <sys/prctl.h>
+#elif defined(_WIN32)
+#include <process.h>
 #endif
 #include <fcntl.h>
 
@@ -65,8 +67,13 @@ ProcessReturnCode& ProcessReturnCode::operator=(ProcessReturnCode&& p)
 ProcessReturnCode::State ProcessReturnCode::state() const {
   if (rawStatus_ == RV_NOT_STARTED) return NOT_STARTED;
   if (rawStatus_ == RV_RUNNING) return RUNNING;
+#ifdef _WIN32
+  if (rawStatus_ == 0) return EXITED;
+  return KILLED;
+#else
   if (WIFEXITED(rawStatus_)) return EXITED;
   if (WIFSIGNALED(rawStatus_)) return KILLED;
+#endif
   throw std::runtime_error(to<std::string>(
       "Invalid ProcessReturnCode: ", rawStatus_));
 }
@@ -82,17 +89,31 @@ void ProcessReturnCode::enforce(State expected) const {
 
 int ProcessReturnCode::exitStatus() const {
   enforce(EXITED);
+#ifdef _WIN32
+  return rawStatus_;
+#else
   return WEXITSTATUS(rawStatus_);
+#endif
 }
 
 int ProcessReturnCode::killSignal() const {
   enforce(KILLED);
+#ifdef _WIN32
+  return rawStatus_;
+#else
   return WTERMSIG(rawStatus_);
+#endif
 }
 
 bool ProcessReturnCode::coreDumped() const {
   enforce(KILLED);
+#ifdef _WIN32
+  // This can only be done manually on Windows,
+  // so isn't the case here.
+  return false;
+#else
   return WCOREDUMP(rawStatus_);
+#endif
 }
 
 std::string ProcessReturnCode::str() const {
@@ -415,8 +436,11 @@ void Subprocess::spawnInternal(
 }
 
 int Subprocess::prepareChild(const Options& options,
+#ifndef _WIN32
                              const sigset_t* sigmask,
+#endif
                              const char* childDir) const {
+#ifndef _WIN32
   // While all signals are blocked, we must reset their
   // dispositions to default.
   for (int sig = 1; sig < NSIG; ++sig) {
@@ -430,6 +454,7 @@ int Subprocess::prepareChild(const Options& options,
       return r;  // pthread_sigmask() returns an errno value
     }
   }
+#endif
 
   // Change the working directory, if one is given
   if (childDir) {
@@ -477,11 +502,13 @@ int Subprocess::prepareChild(const Options& options,
   }
 #endif
 
+#ifndef _WIN32
   if (options.processGroupLeader_) {
     if (setpgrp() == -1) {
       return errno;
     }
   }
+#endif
 
   // The user callback comes last, so that the child is otherwise all set up.
   if (options.dangerousPostForkPreExecCallback_) {
@@ -497,11 +524,19 @@ int Subprocess::runChild(const char* executable,
                          char** argv, char** env,
                          const Options& options) const {
   // Now, finally, exec.
+#ifdef _WIN32
+  if (options.usePath_) {
+    this->procHandle_ = HANDLE(::spawnvp(_P_NOWAIT, executable, argv));
+  } else {
+    this->procHandle_ = HANDLE(::spawnve(_P_NOWAIT, executable, argv, env));
+  }
+#else
   if (options.usePath_) {
     ::execvp(executable, argv);
   } else {
     ::execve(executable, argv, env);
   }
+#endif
   return errno;
 }
 
@@ -584,11 +619,13 @@ void Subprocess::waitChecked() {
   checkStatus(returnCode_);
 }
 
+#ifndef _WIN32
 void Subprocess::sendSignal(int signal) {
   returnCode_.enforce(ProcessReturnCode::RUNNING);
   int r = ::kill(pid_, signal);
   checkUnixError(r, "kill");
 }
+#endif
 
 pid_t Subprocess::pid() const {
   return pid_;
@@ -830,8 +867,8 @@ std::vector<Subprocess::ChildPipe> Subprocess::takeOwnershipOfPipes() {
   return pipes;
 }
 
+#ifndef _WIN32
 namespace {
-
 class Initializer {
  public:
   Initializer() {
@@ -841,7 +878,7 @@ class Initializer {
 };
 
 Initializer initializer;
-
 }  // namespace
+#endif
 
 }  // namespace folly

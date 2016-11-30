@@ -731,8 +731,8 @@ void testSetFromSocket(const SocketAddress *serverBindAddr,
 }
 
 TEST(SocketAddress, SetFromSocketIPv4) {
-  SocketAddress serverBindAddr("0.0.0.0", 0);
-  SocketAddress clientBindAddr("0.0.0.0", 0);
+  SocketAddress serverBindAddr("127.0.0.1", 0);
+  SocketAddress clientBindAddr("127.0.0.1", 0);
   SocketAddress listenAddr;
   SocketAddress acceptAddr;
   SocketAddress serverAddr;

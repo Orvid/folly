@@ -222,7 +222,11 @@ TEST(ParentDeathSubprocessTest, ParentDeathSignal) {
   Subprocess proc(args);
   // The helper gets killed by its child, see details in
   // SubprocessTestParentDeathHelper.cpp
+#ifdef _WIN32
+  ASSERT_EQ(SIGTERM, proc.wait().killSignal());
+#else
   ASSERT_EQ(SIGKILL, proc.wait().killSignal());
+#endif
 
   // Now wait for the file to be created, see details in
   // SubprocessTestParentDeathHelper.cpp

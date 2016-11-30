@@ -76,7 +76,6 @@ REMOVE_MATCHES_FROM_LISTS(files hfiles
     "/experimental/hazptr/example/"
     "/experimental/symbolizer/"
     "/futures/exercises/"
-    "/gen/"
     "/test/"
     "Benchmark.cpp$"
     "Test.cpp$"
@@ -84,31 +83,23 @@ REMOVE_MATCHES_FROM_LISTS(files hfiles
     "/Benchmark.cpp$"
 )
 list(REMOVE_ITEM files
-  ${FOLLY_DIR}/SingletonStackTrace.cpp
   ${FOLLY_DIR}/Subprocess.cpp
+  ${FOLLY_DIR}/SingletonStackTrace.cpp
   ${FOLLY_DIR}/experimental/JSONSchemaTester.cpp
-  ${FOLLY_DIR}/experimental/NestedCommandLineApp.cpp
-  ${FOLLY_DIR}/experimental/ProgramOptions.cpp
   ${FOLLY_DIR}/experimental/RCUUtils.cpp
   ${FOLLY_DIR}/experimental/io/AsyncIO.cpp
   ${FOLLY_DIR}/experimental/io/HugePageUtil.cpp
   ${FOLLY_DIR}/init/Init.cpp
-  ${FOLLY_DIR}/io/Compression.cpp
   ${FOLLY_DIR}/futures/test/Benchmark.cpp
 )
 list(REMOVE_ITEM hfiles
   ${FOLLY_DIR}/Fingerprint.h
-  ${FOLLY_DIR}/Subprocess.h
   ${FOLLY_DIR}/detail/SlowFingerprint.h
   ${FOLLY_DIR}/detail/FingerprintPolynomial.h
-  ${FOLLY_DIR}/experimental/NestedCommandLineApp.h
-  ${FOLLY_DIR}/experimental/ProgramOptions.h
   ${FOLLY_DIR}/experimental/RCURefCount.h
   ${FOLLY_DIR}/experimental/RCUUtils.h
-  ${FOLLY_DIR}/experimental/TLRefCount.h
   ${FOLLY_DIR}/experimental/io/AsyncIO.h
   ${FOLLY_DIR}/init/Init.h
-  ${FOLLY_DIR}/io/Compression.h
 )
 
 add_library(folly_base STATIC
@@ -259,7 +250,7 @@ if (BUILD_TESTS)
     PUBLIC
       Boost::thread
       folly
-      gmock
+      GMock::gmock_main
   )
   apply_folly_compile_options_to_target(folly_test_support)
 
@@ -270,13 +261,11 @@ if (BUILD_TESTS)
       TEST bitvector_test SOURCES BitVectorCodingTest.cpp
       TEST dynamic_parser_test SOURCES DynamicParserTest.cpp
       TEST eliasfano_test SOURCES EliasFanoCodingTest.cpp
-      # Just needs to be ported to use emulatable futex.
-      #TEST event_count_test SOURCES EventCountTest.cpp
+      TEST event_count_test SOURCES EventCountTest.cpp
       TEST function_scheduler_test_2 SOURCES FunctionSchedulerTest.cpp
       TEST future_dag_test SOURCES FutureDAGTest.cpp
       TEST json_schema_test SOURCES JSONSchemaTest.cpp
       TEST lock_free_ring_buffer_test SOURCES LockFreeRingBufferTest.cpp
-      # Depends on Subprocess
       #TEST nested_command_line_app_test SOURCES NestedCommandLineAppTest.cpp
       #TEST program_options_test SOURCES ProgramOptionsTest.cpp
       # Depends on liburcu
@@ -337,13 +326,11 @@ if (BUILD_TESTS)
       # MSVC bug can't resolve initializer_list constructor properly
       #TEST base_test SOURCES BaseTest.cpp
       TEST combine_test SOURCES CombineTest.cpp
-      # These both depend on Subprocess
-      #TEST parallel_map_test SOURCES ParallelMapTest.cpp
-      #TEST parallel_test SOURCES ParallelTest.cpp
+      TEST parallel_map_test SOURCES ParallelMapTest.cpp
+      TEST parallel_test SOURCES ParallelTest.cpp
 
     DIRECTORY io/test/
-      # Depends on compression stuff
-      #TEST compression_test SOURCES CompressionTest.cpp
+      TEST compression_test SOURCES CompressionTest.cpp
       TEST iobuf_test SOURCES IOBufTest.cpp
       TEST iobuf_cursor_test SOURCES IOBufCursorTest.cpp
       TEST iobuf_queue_test SOURCES IOBufQueueTest.cpp
@@ -417,8 +404,7 @@ if (BUILD_TESTS)
       TEST call_once_test SOURCES CallOnceTest.cpp
       TEST checksum_test SOURCES ChecksumTest.cpp
       TEST clock_gettime_wrappers_test SOURCES ClockGettimeWrappersTest.cpp
-      # MSVC bug in SFINAE
-      #TEST concurrent_skip_list_test SOURCES ConcurrentSkipListTest.cpp
+      TEST concurrent_skip_list_test SOURCES ConcurrentSkipListTest.cpp
       TEST container_traits_test SOURCES ContainerTraitsTest.cpp
       TEST conv_test SOURCES ConvTest.cpp
       TEST cpu_id_test SOURCES CpuIdTest.cpp
@@ -436,9 +422,9 @@ if (BUILD_TESTS)
       TEST expected_test SOURCES ExpectedTest.cpp
       TEST fbvector_test SOURCES FBVectorTest.cpp
       TEST file_test SOURCES FileTest.cpp
-      # Depends on Subprocess, which is unsupported on Windows
       #TEST file_lock_test SOURCES FileLockTest.cpp
-      TEST file_util_test HANGING SOURCES FileUtilTest.cpp
+      TEST file_util_test HANGING
+        SOURCES FileUtilTest.cpp
       TEST fingerprint_test SOURCES FingerprintTest.cpp
       TEST foreach_test SOURCES ForeachTest.cpp
       TEST format_other_test SOURCES FormatOtherTest.cpp
@@ -508,7 +494,6 @@ if (BUILD_TESTS)
       TEST spooky_hash_v1_test SOURCES SpookyHashV1Test.cpp
       TEST spooky_hash_v2_test SOURCES SpookyHashV2Test.cpp
       TEST string_test SOURCES StringTest.cpp
-      # Is the test for Subprocess, which is unsupported on Windows.
       #TEST subprocess_test SOURCES SubprocessTest.cpp
       TEST synchronized_test SOURCES SynchronizedTest.cpp
       TEST thread_cached_arena_test SOURCES ThreadCachedArenaTest.cpp

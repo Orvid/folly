@@ -95,7 +95,10 @@
 
 #include <sys/types.h>
 #include <signal.h>
-#if __APPLE__
+
+#ifdef _WIN32
+#include <folly/portability/Windows.h>
+#elif __APPLE__
 #include <sys/wait.h>
 #else
 #include <wait.h>
@@ -512,6 +515,12 @@ class Subprocess {
    */
   void waitChecked();
 
+#ifdef _WIN32
+  // Signals don't do what you think in Windows, so only expose the helpers,
+  // both of which really just do the exact same thing.
+  void terminate() { kill(); }
+  void kill() { TerminateProcess(procHandle_, SIGTERM); }
+#else
   /**
    * Send a signal to the child.  Shortcuts for the commonly used Unix
    * signals are below.
@@ -519,6 +528,7 @@ class Subprocess {
   void sendSignal(int signal);
   void terminate() { sendSignal(SIGTERM); }
   void kill() { sendSignal(SIGKILL); }
+#endif
 
   ////
   //// The methods below only affect the process's communication pipes, but
@@ -816,7 +826,9 @@ class Subprocess {
   // Note that this runs after vfork(), so tread lightly.
   // Returns 0 on success, or an errno value on failure.
   int prepareChild(const Options& options,
+#ifndef _WIN32
                    const sigset_t* sigmask,
+#endif
                    const char* childDir) const;
   int runChild(const char* executable, char** argv, char** env,
                const Options& options) const;
@@ -830,7 +842,10 @@ class Subprocess {
   // Returns an index into pipes_. Throws std::invalid_argument if not found.
   size_t findByChildFd(const int childFd) const;
 
-  pid_t pid_{-1};
+#ifdef _WIN32
+  HANDLE procHandle_{INVALID_HANDLE_VALUE};
+#endif
+  pid_t pid_{(pid_t)-1};
   ProcessReturnCode returnCode_{RV_NOT_STARTED};
 
   /**
