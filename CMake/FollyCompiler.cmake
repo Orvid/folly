@@ -87,48 +87,51 @@ function(apply_folly_compile_options_to_target THETARGET)
 
   target_compile_options(${THETARGET}
     PUBLIC
+      /wd4191 # 'type cast' unsafe conversion of function pointers
+      /wd4291 # no matching operator delete found
+      /wd4309 # '=' truncation of constant value
+      /wd4310 # cast truncates constant value
+      /wd4366 # result of unary '&' operator may be unaligned
+      /wd4587 # behavior change; constructor no longer implicitly called
+      /wd4592 # symbol will be dynamically initialized (implementation limitation)
+      /wd4723 # potential divide by 0
+      /wd4724 # potential mod by 0
+      /wd4868 # compiler may not enforce left-to-right evaluation order
+      /wd4996 # user deprecated
+
       # The warnings that are disabled:
       /wd4068 # Unknown pragma.
       /wd4091 # 'typedef' ignored on left of '' when no variable is declared.
-      /wd4101 # Unused variables
       /wd4146 # Unary minus applied to unsigned type, result still unsigned.
       /wd4800 # Values being forced to bool, this happens many places, and is a "performance warning".
 
-      # Warnings disabled to keep it quiet for now,
-      # most of these should be reviewed and re-enabled:
-      /wd4018 # Signed/unsigned mismatch.
-      /wd4242 # Possible loss of data when returning a value.
-      /wd4244 # Implicit truncation of data.
-      /wd4267 # Implicit truncation of data. This really shouldn't be disabled.
-      /wd4804 # Unsafe use of type 'bool' in operation. (comparing if bool is <=> scalar)
-      /wd4805 # Unsafe mix of scalar type and type 'bool' in operation. (comparing if bool is == scalar)
+      # NOTE: glog/logging.h:1116 change to size_t pcount() const { return size_t(pptr() - pbase()); }
+      #/wd4018 # Signed/unsigned mismatch.
+      #/wd4365 # Signed/unsigned mismatch.
+      #/wd4388 # Signed/unsigned mismatch on relative comparison operator.
+      #/wd4389 # Signed/unsigned mismatch on equality comparison operator.
+
+      # TODO:
+      /wd4100 # Unreferenced formal parameter.
+      /wd4459 # Declaration of parameter hides global declaration.
+      /wd4505 # Unreferenced local function has been removed.
+      /wd4701 # Potentially uninitialized local variable used.
+      /wd4702 # Unreachable code.
 
       # These warnings are disabled because we've
       # enabled all warnings. If all warnings are
       # not enabled, we still need to disable them
       # for consuming libs.
       /wd4061 # Enum value not handled by a case in a switch on an enum. This isn't very helpful because it is produced even if a default statement is present.
-      /wd4100 # Unreferenced formal parameter.
       /wd4127 # Conditional expression is constant.
       /wd4200 # Non-standard extension, zero sized array.
       /wd4201 # Non-standard extension used: nameless struct/union.
-      /wd4245 # Implicit change from signed/unsigned when initializing.
-      /wd4255 # Implicitly converting function prototype from `()` to `(void)`.
-      /wd4287 # Unsigned/negative constant mismatch.
       /wd4296 # '<' Expression is always false.
       /wd4316 # Object allocated on the heap may not be aligned to 128.
       /wd4324 # Structure was padded due to alignment specifier.
       /wd4355 # 'this' used in base member initializer list.
-      /wd4365 # Signed/unsigned mismatch.
       /wd4371 # Layout of class may have changed due to fixes in packing.
-      /wd4388 # Signed/unsigned mismatch on relative comparison operator.
-      /wd4389 # Signed/unsigned mismatch on equality comparison operator.
       /wd4435 # Object layout under /vd2 will change due to virtual base.
-      /wd4456 # Declaration of local hides previous definition of local by the same name.
-      /wd4457 # Declaration of local hides function parameter.
-      /wd4458 # Declaration of parameter hides class member.
-      /wd4459 # Declaration of parameter hides global declaration.
-      /wd4505 # Unreferenced local function has been removed. This is mostly the result of things not being needed under MSVC.
       /wd4514 # Unreferenced inline function has been removed. (caused by /Zc:inline)
       /wd4548 # Expression before comma has no effect. I wouldn't disable this normally, but malloc.h triggers this warning.
       /wd4574 # ifdef'd macro was defined to 0.
@@ -138,12 +141,11 @@ function(apply_folly_compile_options_to_target THETARGET)
       /wd4623 # Default constructor was implicitly defined as deleted.
       /wd4625 # Copy constructor was implicitly defined as deleted.
       /wd4626 # Assignment operator was implicitly defined as deleted.
+      /wd4647 # Behavior change in __is_pod.
       /wd4668 # Macro was not defined, replacing with 0.
-      /wd4701 # Potentially uninitialized local variable used.
-      /wd4702 # Unreachable code.
       /wd4706 # Assignment within conditional expression.
       /wd4710 # Function was not inlined.
-      /wd4711 # Function was selected for automated inlining. This produces tens of thousands of warnings in release mode if you leave it enabled, which will completely break Visual Studio, so don't enable it.
+      /wd4711 # Function was selected for automated inlining.
       /wd4714 # Function marked as __forceinline not inlined.
       /wd4820 # Padding added after data member.
       /wd5026 # Move constructor was implicitly defined as deleted.

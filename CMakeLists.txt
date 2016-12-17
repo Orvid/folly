@@ -18,7 +18,7 @@ set(PACKAGE_STRING    "${PACKAGE_NAME} ${PACKAGE_VERSION}")
 set(PACKAGE_TARNAME   "${PACKAGE_NAME}-${PACKAGE_VERSION}")
 set(PACKAGE_BUGREPORT "https://github.com/facebook/folly/issues")
 
-# 100+ tests in the root folder anyone? No? I didn't think so.
+# 150+ tests in the root folder anyone? No? I didn't think so.
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 project(${PACKAGE_NAME} CXX)
@@ -89,7 +89,6 @@ list(REMOVE_ITEM files
   ${FOLLY_DIR}/experimental/RCUUtils.cpp
   ${FOLLY_DIR}/experimental/io/AsyncIO.cpp
   ${FOLLY_DIR}/experimental/io/HugePageUtil.cpp
-  ${FOLLY_DIR}/init/Init.cpp
   ${FOLLY_DIR}/futures/test/Benchmark.cpp
 )
 list(REMOVE_ITEM hfiles
@@ -99,7 +98,6 @@ list(REMOVE_ITEM hfiles
   ${FOLLY_DIR}/experimental/RCURefCount.h
   ${FOLLY_DIR}/experimental/RCUUtils.h
   ${FOLLY_DIR}/experimental/io/AsyncIO.h
-  ${FOLLY_DIR}/init/Init.h
 )
 
 add_library(folly_base STATIC
@@ -121,24 +119,7 @@ source_group("folly\\build" FILES
   ${CMAKE_CURRENT_BINARY_DIR}/folly/build/GroupVarintTables.cpp
 )
 
-find_package(Boost 1.55.0
-  COMPONENTS
-    context
-    chrono
-    date_time
-    filesystem
-    program_options
-    regex
-    system
-    thread
-  REQUIRED
-)
-find_package(double-conversion REQUIRED)
-find_package(gflags REQUIRED)
-find_package(Glog REQUIRED)
-find_package(LibEvent REQUIRED)
-find_package(OpenSSL REQUIRED)
-find_package(PThread REQUIRED)
+include(folly-deps) # Find the required packages
 target_link_libraries(folly_base
   PUBLIC
     Boost::chrono
@@ -149,10 +130,10 @@ target_link_libraries(folly_base
     Boost::regex
     Boost::system
     double-conversion
-    event
-    gflags
-    glog::glog
-    pthread
+    LibEvent::event
+    GFlags::gflags
+    GLog::glog
+    PThread::pthread
     OpenSSL::SSL
     OpenSSL::Crypto
     Ws2_32.lib
@@ -214,17 +195,29 @@ auto_install_files(folly ${FOLLY_DIR}
   ${FOLLY_DIR}/detail/FingerprintPolynomial.h
 )
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/folly/folly-config.h DESTINATION include/folly)
-install(EXPORT folly DESTINATION share/folly)
+install(
+  EXPORT folly
+  DESTINATION share/folly
+  NAMESPACE Folly::
+  FILE folly-targets.cmake
+)
+
+# We need a wrapper config file to do the find_package calls to ensure
+# that all our dependencies are available to link against.
+file(
+  COPY ${CMAKE_CURRENT_SOURCE_DIR}/CMake/folly-deps.cmake
+  DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/
+)
+file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/folly-deps.cmake "\ninclude(folly-targets.cmake)\n")
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/folly-deps.cmake DESTINATION share/folly RENAME folly-config.cmake)
 
 option(BUILD_TESTS "If enabled, compile the tests." OFF)
 option(BUILD_HANGING_TESTS "If enabled, compile tests that are known to hang." OFF)
 option(BUILD_SLOW_TESTS "If enabled, compile tests that take a while to run in debug mode." OFF)
 if (BUILD_TESTS)
-  find_package(gmock REQUIRED)
+  find_package(GMock REQUIRED)
 
   add_library(folly_test_support
-    ${FOLLY_DIR}/init/Init.cpp
-    ${FOLLY_DIR}/init/Init.h
     ${FOLLY_DIR}/test/DeterministicSchedule.cpp
     ${FOLLY_DIR}/test/DeterministicSchedule.h
     ${FOLLY_DIR}/test/SingletonTestStructs.cpp
