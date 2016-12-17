@@ -681,7 +681,7 @@ void SocketAddress::getIpString(char *buf, size_t buflen, int flags) const {
   sockaddr_storage tmp_sock;
   storage_.addr.toSockaddrStorage(&tmp_sock, port_);
   int rc = getnameinfo((sockaddr*)&tmp_sock, sizeof(sockaddr_storage),
-                       buf, buflen, nullptr, 0, flags);
+                       buf, DWORD(buflen), nullptr, 0, flags);
   if (rc != 0) {
     auto os = folly::to<std::string>(
       "getnameinfo() failed in getIpString() error = ",

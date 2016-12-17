@@ -234,7 +234,7 @@ AsyncSocket::AsyncSocket(EventBase* evb,
                            const folly::SocketAddress& address,
                            uint32_t connectTimeout)
   : AsyncSocket(evb) {
-  connect(nullptr, address, connectTimeout);
+  connect(nullptr, address, int(connectTimeout));
 }
 
 AsyncSocket::AsyncSocket(EventBase* evb,
@@ -242,7 +242,7 @@ AsyncSocket::AsyncSocket(EventBase* evb,
                            uint16_t port,
                            uint32_t connectTimeout)
   : AsyncSocket(evb) {
-  connect(nullptr, ip, port, connectTimeout);
+  connect(nullptr, ip, port, int(connectTimeout));
 }
 
 AsyncSocket::AsyncSocket(EventBase* evb, int fd)
@@ -1174,7 +1174,7 @@ bool AsyncSocket::readable() const {
     return false;
   }
   struct pollfd fds[1];
-  fds[0].fd = fd_;
+  fds[0].fd = SOCKET(fd_);
   fds[0].events = POLLIN;
   fds[0].revents = 0;
   int rc = poll(fds, 1, 0);
