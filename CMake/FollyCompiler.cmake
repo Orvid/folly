@@ -105,7 +105,40 @@ function(apply_folly_compile_options_to_target THETARGET)
       /wd4146 # Unary minus applied to unsigned type, result still unsigned.
       /wd4800 # Values being forced to bool, this happens many places, and is a "performance warning".
 
-      # NOTE: glog/logging.h:1116 change to size_t pcount() const { return size_t(pptr() - pbase()); }
+      # NOTE: glog/logging.h:1116 change to `size_t pcount() const { return size_t(pptr() - pbase()); }`
+      # NOTE: gmock/gmock-spec-builders.h:1177 change to `*static_cast<const Action<F>*>(untyped_actions_[size_t(count - 1)]) :`
+      # NOTE: gmock/gmock-spec-builders.h:1749 change to `const size_t count = untyped_expectations_.size();`
+      # NOTE: gmock/gmock-spec-builders.h:1754 change to `for (size_t i = 0; i < count; i++) {`
+      # NOTE: gtest/gtest-printers.h:173 change to `const internal::BiggestInt kBigInt = internal::BiggestInt(value);`
+      # NOTE: gtest/internal/gtest-internal.h:890 add `GTEST_DISABLE_MSC_WARNINGS_PUSH_(4365)`
+      # NOTE: gtest/internal/gtest-internal.h:894 ass `GTEST_DISABLE_MSC_WARNINGS_POP_()`
+      # NOTE: boost/crc.hpp:578 change to `{ return static_cast<unsigned char>(x ^ rem); }`
+      # NOTE: boost/regex/v4/match_results.hpp:126 change to `return m_subs[size_type(sub)].length();`
+      # NOTE: boost/regex/v4/match_results.hpp:226 change to `return m_subs[size_type(sub)];`
+      # NOTE: boost/date_time/adjust_functors.hpp:67 change to `origDayOfMonth_ = short(ymd.day);`
+      # NOTE: boost/date_time/adjust_functors.hpp:75 change to `wrap_int2 wi(short(ymd.month));`
+      # NOTE: boost/date_time/adjust_functors.hpp:82 change to `day_type resultingEndOfMonthDay(cal_type::end_of_month_day(static_cast<unsigned short>(year), static_cast<unsigned short>(wi.as_int())));`
+      # NOTE: boost/date_time/adjust_functors.hpp:85 change to `return date_type(static_cast<unsigned short>(year), static_cast<unsigned short>(wi.as_int()), resultingEndOfMonthDay) - d;`
+      # NOTE: boost/date_time/adjust_functors.hpp:87 change to `day_type dayOfMonth = static_cast<unsigned short>(origDayOfMonth_);`
+      # NOTE: boost/date_time/adjust_functors.hpp:91 change to `return date_type(static_cast<unsigned short>(year), static_cast<unsigned short>(wi.as_int()), dayOfMonth) - d;`
+      # NOTE: boost/date_time/adjust_functors.hpp:98 change to `origDayOfMonth_ = short(ymd.day);`
+      # NOTE: boost/date_time/adjust_functors.hpp:106 change to `wrap_int2 wi(short(ymd.month));`
+      # NOTE: boost/date_time/adjust_functors.hpp:111 change to `day_type resultingEndOfMonthDay(cal_type::end_of_month_day(static_cast<unsigned short>(year), static_cast<unsigned short>(wi.as_int())));`
+      # NOTE: boost/date_time/adjust_functors.hpp:114 change to `return date_type(static_cast<unsigned short>(year), static_cast<unsigned short>(wi.as_int()), resultingEndOfMonthDay) - d;`
+      # NOTE: boost/date_time/adjust_functors.hpp:116 change to `day_type dayOfMonth = static_cast<unsigned short>(origDayOfMonth_);`
+      # NOTE: boost/date_time/adjust_functors.hpp:120 change to `return date_type(static_cast<unsigned short>(year), static_cast<unsigned short>(wi.as_int()), dayOfMonth) - d;`
+      # NOTE: boost/date_time/gregorian_calendar.ipp:81 change to `unsigned long  d = static_cast<unsigned long>(ymd.day + ((153*m + 2)/5) + 365*y + (y/4) - (y/100) + (y/400) - 32045);`
+      # NOTE: boost/date_time/gregorian/greg_date.hpp:122 change to `unsigned short eom_day =  gregorian_calendar::end_of_month_day(ymd.year, ymd.month);`
+      # NOTE: boost/thread/future.hpp:1050 change to `locks[std::ptrdiff_t(i)]=BOOST_THREAD_MAKE_RV_REF(boost::unique_lock<boost::mutex>(futures[i].future_->mutex));`
+      # NOTE: boost/thread/future.hpp:1063 change to `locks[std::ptrdiff_t(i)].unlock();`
+      # NOTE: boost/thread/win32/basic_recursive_mutex.hpp:47 change to `long const current_thread_id=long(win32::GetCurrentThreadId());`
+      # NOTE: boost/thread/win32/basic_recursive_mutex.hpp:53 change to `long const current_thread_id=long(win32::GetCurrentThreadId());`
+      # NOTE: boost/thread/win32/basic_recursive_mutex.hpp:64 change to `long const current_thread_id=long(win32::GetCurrentThreadId());`
+      # NOTE: boost/thread/win32/basic_recursive_mutex.hpp:78 change to `long const current_thread_id=long(win32::GetCurrentThreadId());`
+      # NOTE: boost/thread/win32/basic_recursive_mutex.hpp:84 change to `long const current_thread_id=long(win32::GetCurrentThreadId());`
+      # NOTE: boost/thread/win32/condition_variable.hpp:79 change to `detail::win32::ReleaseSemaphore(semaphore,long(count_to_release),0);`
+      # NOTE: boost/thread/win32/condition_variable.hpp:84 change to `release(unsigned(detail::interlocked_read_acquire(&waiters)));`
+      # NOTE: boost/algorithm/string/detail/classification.hpp:85 change to `std::size_t Size=std::size_t(::boost::distance(Range));`
       #/wd4018 # Signed/unsigned mismatch.
       #/wd4365 # Signed/unsigned mismatch.
       #/wd4388 # Signed/unsigned mismatch on relative comparison operator.
