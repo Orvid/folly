@@ -228,6 +228,8 @@ function(apply_folly_compile_options_to_target THETARGET)
       _SCL_SECURE_NO_WARNINGS # Don't deprecate the non _s versions of various standard library functions, because safety is for chumps.
       _WINSOCK_DEPRECATED_NO_WARNINGS # Don't deprecate pieces of winsock
       WIN32_LEAN_AND_MEAN # Don't include most of Windows.h
+      
+      _STL_EXTRA_DISABLED_WARNINGS=4365\ 4774\ 4775\ 4987
   )
 
   # Ignore a warning about an object file not defining any symbols,
