@@ -284,7 +284,6 @@ if (BUILD_TESTS)
           BarrierTest.cpp
           CollectTest.cpp
           ContextTest.cpp
-          ConversionTest.cpp
           CoreTest.cpp
           EnsureTest.cpp
           ExecutorTest.cpp
