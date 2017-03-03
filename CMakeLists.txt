@@ -234,6 +234,8 @@ if (BUILD_TESTS)
     ${FOLLY_DIR}/io/async/test/ScopedBoundPort.h
     ${FOLLY_DIR}/io/async/test/SocketPair.cpp
     ${FOLLY_DIR}/io/async/test/SocketPair.h
+    ${FOLLY_DIR}/io/async/test/TestSSLServer.cpp
+    ${FOLLY_DIR}/io/async/test/TestSSLServer.h
     ${FOLLY_DIR}/io/async/test/TimeUtil.cpp
     ${FOLLY_DIR}/io/async/test/TimeUtil.h
     ${FOLLY_DIR}/io/async/test/UndelayedDestruction.h

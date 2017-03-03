@@ -46,7 +46,7 @@ function(apply_folly_compile_options_to_target THETARGET)
   # The general options passed:
   target_compile_options(${THETARGET}
     PUBLIC
-      /std:c++latest # Build in C++17 mode
+      #/std:c++latest # Build in C++17 mode
       /EHa # Enable both SEH and C++ Exceptions.
       /Zc:referenceBinding # Disallow temporaries from binding to non-const lvalue references.
       /Zc:rvalueCast # Enforce the standard rules for explicit type conversion.
@@ -139,10 +139,10 @@ function(apply_folly_compile_options_to_target THETARGET)
       # NOTE: boost/thread/win32/condition_variable.hpp:79 change to `detail::win32::ReleaseSemaphore(semaphore,long(count_to_release),0);`
       # NOTE: boost/thread/win32/condition_variable.hpp:84 change to `release(unsigned(detail::interlocked_read_acquire(&waiters)));`
       # NOTE: boost/algorithm/string/detail/classification.hpp:85 change to `std::size_t Size=std::size_t(::boost::distance(Range));`
-      #/wd4018 # Signed/unsigned mismatch.
-      #/wd4365 # Signed/unsigned mismatch.
-      #/wd4388 # Signed/unsigned mismatch on relative comparison operator.
-      #/wd4389 # Signed/unsigned mismatch on equality comparison operator.
+      /wd4018 # Signed/unsigned mismatch.
+      /wd4365 # Signed/unsigned mismatch.
+      /wd4388 # Signed/unsigned mismatch on relative comparison operator.
+      /wd4389 # Signed/unsigned mismatch on equality comparison operator.
 
       # TODO:
       /wd4100 # Unreferenced formal parameter.
