@@ -126,6 +126,14 @@ source_group("folly\\build" FILES
 )
 
 include(folly-deps) # Find the required packages
+target_include_directories(folly_base
+  PUBLIC
+    ${DOUBLE_CONVERSION_INCLUDE_DIR}
+    ${LIBGFLAGS_INCLUDE_DIR}
+    ${LIBGLOG_INCLUDE_DIR}
+    ${LIBEVENT_INCLUDE_DIR}
+    ${LIBPTHREAD_INCLUDE_DIRS}
+)
 target_link_libraries(folly_base
   PUBLIC
     Boost::chrono
@@ -135,11 +143,11 @@ target_link_libraries(folly_base
     Boost::program_options
     Boost::regex
     Boost::system
-    double-conversion
-    LibEvent::event
-    GFlags::gflags
-    GLog::glog
-    PThread::pthread
+    ${DOUBLE_CONVERSION_LIBRARY}
+    ${LIBEVENT_LIB}
+    ${LIBGFLAGS_LIBRARY}
+    ${LIBGLOG_LIBRARY}
+    ${LIBPTHREAD_LIBRARIES}
     OpenSSL::SSL
     OpenSSL::Crypto
     Ws2_32.lib

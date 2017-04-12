@@ -10,9 +10,9 @@ find_package(Boost 1.55.0 MODULE
     thread
   REQUIRED
 )
-find_package(Double-Conversion CONFIG REQUIRED)
-find_package(GFlags CONFIG REQUIRED)
-find_package(GLog CONFIG REQUIRED)
-find_package(LibEvent CONFIG REQUIRED)
+find_package(DoubleConversion MODULE REQUIRED)
+find_package(GFlags MODULE REQUIRED)
+find_package(GLog MODULE REQUIRED)
+find_package(LibEvent MODULE REQUIRED)
 find_package(OpenSSL MODULE REQUIRED)
-find_package(PThread CONFIG REQUIRED)
+find_package(PThread MODULE REQUIRED)
