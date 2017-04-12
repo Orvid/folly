@@ -229,7 +229,7 @@ option(BUILD_TESTS "If enabled, compile the tests." OFF)
 option(BUILD_HANGING_TESTS "If enabled, compile tests that are known to hang." OFF)
 option(BUILD_SLOW_TESTS "If enabled, compile tests that take a while to run in debug mode." OFF)
 if (BUILD_TESTS)
-  find_package(GMock REQUIRED)
+  find_package(GMock MODULE REQUIRED)
 
   add_library(folly_test_support
     ${FOLLY_DIR}/test/DeterministicSchedule.cpp
@@ -255,11 +255,15 @@ if (BUILD_TESTS)
     ${FOLLY_DIR}/io/async/test/UndelayedDestruction.h
     ${FOLLY_DIR}/io/async/test/Util.h
   )
+  target_include_directories(folly_test_support
+    PUBLIC
+      ${LIBGMOCK_INCLUDE_DIR}
+  )
   target_link_libraries(folly_test_support
     PUBLIC
       Boost::thread
       folly
-      GMock::gmock_main
+      ${LIBGMOCK_LIBRARY}
   )
   apply_folly_compile_options_to_target(folly_test_support)
 
